@@ -1,0 +1,17 @@
+{
+    "interface": "lo0",
+    "output": {
+        "type": "local",
+        "options": {
+            "baseDir": "./"
+        }
+    },
+    "logging": [{
+        "type": "file",
+        "filename": "logs/mirror.log",
+        "level": "debug"
+    }, {
+        "type": "console",
+        "level": "debug"
+    }]
+}
