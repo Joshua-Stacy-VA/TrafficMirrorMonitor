@@ -1,17 +1,16 @@
 'use strict';
 
-const { version } = require('../package');
-
 const args = require('minimist')(process.argv.slice(2), {
     alias: { c: 'config' },
     default: { config: './config/config.json' },
     boolean: ['isStreamingEnabled', 'isClusteringEnabled'],
 });
 const fs = require('fs-extra');
+const { version } = require('../package');
 
 const REQUIRED_FIELDS = [
     'interface',
-    "output",
+    'output',
     'logging',
 ];
 
