@@ -25,7 +25,7 @@ class Process {
         });
     }
 
-    _onShutdownEvent(options, reason, other) {
+    _onShutdownEvent(options, reason) {
         if (options.isProcessExitEvent) {
             return this._exitProcess();
         }
@@ -70,6 +70,18 @@ class Process {
 
     onShutdown(shutdownFunc) {
         this.handleShutdown = (typeof shutdownFunc === 'function') ? shutdownFunc : this.handleShutdown;
+    }
+
+    static createProcess(system) {
+        const { Logger } = system;
+        const log = Logger.getLogger();
+
+        const process = new Process();
+        process.onShutdown((type, reason, exitCode) => {
+            log.log((exitCode === 0) ? 'info' : 'error', reason, { type, exitCode });
+        });
+
+        return process;
     }
 }
 

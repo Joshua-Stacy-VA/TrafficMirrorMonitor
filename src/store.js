@@ -11,9 +11,9 @@ const generateFileName = (data) => {
     return `${timestamp}_${id}.json`;
 };
 
-class LocalOutput {
+class LocalStore {
     constructor(options) {
-        const { baseDir = '.'} = options;
+        const { baseDir = '.' } = options;
         Object.assign(this, {
             baseDir,
         });
@@ -27,7 +27,7 @@ class LocalOutput {
     }
 }
 
-class S3Output {
+class S3Store {
     constructor(options) {
         const { region, bucket } = options;
         Object.assign(this, {
@@ -46,22 +46,22 @@ class S3Output {
     }
 }
 
-const OUTPUT_CLASS_MAP = {
-    local: LocalOutput,
-    s3: S3Output,
+const STORE_CLASS_MAP = {
+    local: LocalStore,
+    s3: S3Store,
 };
 
-class Output {
-    static createOutput(system) {
+class Store {
+    static createStore(system) {
         const { Configuration } = system;
-        const { output } = Configuration.get();
+        const { store } = Configuration.get();
 
-        const { type, options } = output;
-        const OutputClass = OUTPUT_CLASS_MAP[type];
+        const { type, options } = store;
+        const StoreClass = STORE_CLASS_MAP[type];
 
-        const outputInstance = new OutputClass(options);
-        return outputInstance;
+        const storeInstance = new StoreClass(options);
+        return storeInstance;
     }
 }
 
-module.exports = { Output };
+module.exports = { Store };
