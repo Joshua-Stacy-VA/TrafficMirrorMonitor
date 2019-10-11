@@ -9,8 +9,8 @@ const fs = require('fs-extra');
 const { version } = require('../package');
 
 const REQUIRED_FIELDS = [
-    'interface',
-    'output',
+    'capture',
+    'store',
     'logging',
 ];
 

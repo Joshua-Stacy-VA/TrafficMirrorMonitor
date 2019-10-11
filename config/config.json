@@ -1,6 +1,8 @@
 {
-    "interface": "lo0",
-    "output": {
+    "capture": {
+        "device": "eth0"
+    },
+    "store": {
         "type": "local",
         "options": {
             "baseDir": "./"
