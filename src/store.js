@@ -5,14 +5,37 @@ const { DateTime } = require('luxon');
 const fs = require('fs-extra');
 const AWS = require('aws-sdk');
 
-const generateFileName = (data) => {
-    const { id } = data;
-    const timestamp = DateTime.utc().toMillis();
-    return `${timestamp}_${id}.json`;
-};
+const STORE_CLASS_MAP = {};
 
-class LocalStore {
+class Store {
     constructor(options) {
+        const { log } = options;
+        Object.assign(this, { log });
+    }
+
+    static generateFileName(data) {
+        const { id } = data;
+        const timestamp = DateTime.utc().toMillis();
+        return `${timestamp}_${id}.json`;
+    }
+
+    static createStore(system) {
+        const { Configuration, Logger } = system;
+        const log = Logger.getLogger();
+
+        const { store } = Configuration.get();
+        const { type, options } = store;
+        const StoreClass = STORE_CLASS_MAP[type];
+
+        const storeInstance = new StoreClass({ log, ...options });
+        return storeInstance;
+    }
+}
+
+class LocalStore extends Store {
+    constructor(options) {
+        super(options);
+
         const { baseDir = '.' } = options;
         Object.assign(this, {
             baseDir,
@@ -22,13 +45,18 @@ class LocalStore {
     }
 
     async write(data) {
-        const fileName = generateFileName(data);
+        const fileName = Store.generateFileName(data);
         await fs.writeJson(path.join(this.baseDir, fileName), data, { spaces: 2 });
     }
 }
 
-class S3Store {
+STORE_CLASS_MAP.local = LocalStore;
+
+
+class S3Store extends Store {
     constructor(options) {
+        super(options);
+
         const { region, bucket } = options;
         Object.assign(this, {
             s3: new AWS.S3({ region }),
@@ -37,7 +65,7 @@ class S3Store {
     }
 
     async write(data) {
-        const fileName = generateFileName(data);
+        const fileName = Store.generateFileName(data);
         await this.s3.putObject({
             Bucket: this.bucket,
             Key: fileName,
@@ -46,22 +74,7 @@ class S3Store {
     }
 }
 
-const STORE_CLASS_MAP = {
-    local: LocalStore,
-    s3: S3Store,
-};
+STORE_CLASS_MAP.s3 = S3Store;
 
-class Store {
-    static createStore(system) {
-        const { Configuration } = system;
-        const { store } = Configuration.get();
-
-        const { type, options } = store;
-        const StoreClass = STORE_CLASS_MAP[type];
-
-        const storeInstance = new StoreClass(options);
-        return storeInstance;
-    }
-}
 
 module.exports = { Store };
