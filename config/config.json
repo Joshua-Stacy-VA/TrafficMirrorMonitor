@@ -1,6 +1,6 @@
 {
     "capture": {
-        "device": "eth0"
+        "device": "lo0"
     },
     "store": {
         "type": "local",
@@ -10,7 +10,7 @@
     },
     "logging": [{
         "type": "file",
-        "filename": "logs/mirror.log",
+        "filename": "logs/monitor.log",
         "level": "debug"
     }, {
         "type": "console",
