@@ -82,13 +82,13 @@ class Capture {
         const dst = `${daddr}:${dport}`;
 
         const key = (src < dst) ? `${src}-${dst}` : `${dst}-${src}`;
-        cosnt str = this.getTCPStream(key, { src, dst });
+        const stream = this.getTCPStream(key, { src, dst });
 
-        if (str.isClosed) {
-            console.log(packet);
+        if (stream.isClosed) {
+            console.log(Capture.getPayloadRecursive(packet, 3));
         }
 
-        str.track(packet);
+        stream.track(packet);
     }
 
     getTCPStream(key, options) {
