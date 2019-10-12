@@ -78,7 +78,14 @@ class Process {
 
         const process = new Process();
         process.onShutdown((type, reason, exitCode) => {
-            log.log((exitCode === 0) ? 'info' : 'error', reason, { type, exitCode });
+            const isError = (exitCode === 0);
+            const logLevel = isError ? 'error' : 'info';
+
+            log.log(logLevel, reason, { type, exitCode });
+            if (isError) {
+                const { stack = 'No call stack' } = reason;
+                log.error(stack);
+            }
         });
 
         return process;
