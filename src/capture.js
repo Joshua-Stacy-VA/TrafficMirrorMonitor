@@ -96,9 +96,11 @@ class Capture {
 
     createTCPStream(key, options) {
         const streamId = uuid();
+        const [shortId] = streamId.split('-');
+
         const { src, dst } = options;
         const streamDescription = chalk.bold(`${src} => ${dst}`);
-        this.log.info(`TCP stream ${chalk.bold(streamId)} ${chalk.green('OPENED')} (${streamDescription})`);
+        this.log.info(`TCP stream ${chalk.bold(shortId)} ${chalk.green('OPENED')} (${streamDescription})`);
 
         const stream = new pcap.TCPSession();
         const session = this.sessions.create(streamId, {
@@ -109,15 +111,15 @@ class Capture {
 
         stream
             .on('data send', (streamObj, data) => {
-                this.log.debug(`[${streamId}] SOURCE SEND: ${src} => ${dst}`);
+                this.log.debug(`[${shortId}] SOURCE SEND: ${src} => ${dst} ${data.toString().slice(0, 10)}`);
                 session.clientData(data);
             })
             .on('data recv', (streamObj, data) => {
-                this.log.debug(`[${streamId}] DEST SEND: ${dst} => ${src}`);
+                this.log.debug(`[${shortId}] DEST SEND: ${dst} => ${src} ${data.toString().slice(0, 10)}`);
                 session.targetData(data);
             })
             .on('end', () => {
-                this.log.info(`TCP stream ${chalk.bold(streamId)} ${chalk.yellow('CLOSED')} (${streamDescription})`);
+                this.log.info(`TCP stream ${chalk.bold(shortId)} ${chalk.yellow('CLOSED')} (${streamDescription})`);
                 session.close();
                 this.deleteTCPStream(key);
             });
