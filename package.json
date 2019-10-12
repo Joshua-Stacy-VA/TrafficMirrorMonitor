@@ -26,10 +26,12 @@
   "dependencies": {
     "aws-sdk": "^2.434.0",
     "bottlejs": "^1.7.2",
+    "chalk": "^2.4.2",
     "fs-extra": "^7.0.1",
     "luxon": "^1.19.3",
     "minimist": "^1.2.0",
     "p-queue": "^5.0.0",
+    "pcap": "^2.1.0",
     "through2": "^3.0.1",
     "uuid": "^3.3.2",
     "winston": "^3.2.1",

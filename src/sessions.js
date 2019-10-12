@@ -6,70 +6,52 @@ class Session {
             id,
             client,
             target,
-        });
-    }
-
-    reset() {
-        const { id, client, target } = this;
-        Object.assign(this, {
-            data: {
-                id,
-                client,
-                target,
-                payload: {
-                    client: [],
-                    target: [],
-                    control: [],
-                },
+            payload: {
+                client: [],
+                target: [],
+                control: [],
             },
         });
     }
 
-    push(type, data) {
-        const { payload } = this.data;
-        const dataArray = payload[type];
+    open() {}
 
-        if (!Array.isArray(dataArray)) {
-            return;
-        }
+    close() {}
 
-        dataArray.push(data);
+    clientData(data) {}
 
-        // TODO: Check data size limits, write if we've passed the threshold
+    targetData(data) {}
 
-        // TODO: Start the timed write trigger
-    }
+    handleData(source, data) {}
+
+    store() {}
 }
 
-class Sessions {
+class SessionManager {
     constructor() {
         Object.assign(this, {
             sessions: new Map(),
         });
     }
 
-    create(id) {
-        const session = new Session(id);
+    create(id, { client, target }) {
+        const session = new Session(id, client, target);
         this.sessions.set(id, session);
 
         return session;
     }
 
-    destroy(id) {
+    delete(id) {
         const session = this.sessions.get(id);
         if (!session) {
             return;
         }
 
-        // Delete the session out of the session map
         this.sessions.delete(id);
 
-        // TODO: Trigger one more send on the session
-    }
-
-    list() {
-        return Array.from(this.sessions.values());
+        // Store any data that might be in the session
+        session.store();
     }
 }
 
-module.exports = { Sessions };
+module.exports = { Sessions: SessionManager };
