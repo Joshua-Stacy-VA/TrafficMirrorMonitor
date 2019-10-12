@@ -78,7 +78,7 @@ class Process {
 
         const process = new Process();
         process.onShutdown((type, reason, exitCode) => {
-            const isError = (exitCode === 0);
+            const isError = (exitCode !== 0);
             const logLevel = isError ? 'error' : 'info';
 
             log.log(logLevel, reason, { type, exitCode });
