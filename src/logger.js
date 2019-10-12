@@ -51,7 +51,7 @@ class Logger {
         return format.combine(
             Logger.baseFormat(),
             Logger.formatLevelString(),
-            format.colorize({ all: true }),
+            format.colorize({ level: true }),
             format.printf(Logger.formatOutputString),
         );
     }
@@ -60,11 +60,12 @@ class Logger {
         return format.combine(
             Logger.baseFormat(),
             Logger.formatLevelString(),
+            format.uncolorize({ message: true }),
             format.printf(Logger.formatOutputString),
         );
     }
 
-    static baseFormat(options = {}) {
+    static baseFormat() {
         return format.combine(
             format.metadata({ key: 'data' }),
             Logger.processId(),
@@ -77,6 +78,7 @@ class Logger {
         return format.combine(
             Logger.processId(),
             format.timestamp(),
+            format.uncolorize({ message: true }),
             format.errors({ stack: true }),
             format.json(),
         );
@@ -104,5 +106,4 @@ class Logger {
     }
 }
 
-module.exports = {
-    Logger };
+module.exports = { Logger };
