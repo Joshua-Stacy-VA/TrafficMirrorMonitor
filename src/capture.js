@@ -82,7 +82,13 @@ class Capture {
         const dst = `${daddr}:${dport}`;
 
         const key = (src < dst) ? `${src}-${dst}` : `${dst}-${src}`;
-        this.getTCPStream(key, { src, dst }).track(packet);
+        cosnt str = this.getTCPStream(key, { src, dst });
+
+        if (str.isClosed) {
+            console.log(packet);
+        }
+
+        str.track(packet);
     }
 
     getTCPStream(key, options) {
@@ -121,6 +127,7 @@ class Capture {
             .on('end', (streamObj) => {
                 this.log.info(`TCP stream ${chalk.bold(shortId)} ${chalk.yellow('CLOSED')} (${streamDescription})`);
                 console.log(streamObj.state);
+                streamObj.isClosed = true;
                 session.close();
                 this.deleteTCPStream(key);
             });
