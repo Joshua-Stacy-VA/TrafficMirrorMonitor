@@ -140,9 +140,9 @@ class Capture {
 
         const { id } = streamObj;
 
-        Object.assign(streamObj, { stream: null, session: null });
+        // Object.assign(streamObj, { stream: null, session: null });
 
-        this.sessions.delete(id);
+        // this.sessions.delete(id);
         // this.streams.delete(key);
     }
 
