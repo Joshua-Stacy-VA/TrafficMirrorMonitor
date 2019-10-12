@@ -98,7 +98,7 @@ class Capture {
         const streamId = uuid();
         const { src, dst } = options;
         const streamDescription = chalk.bold(`${src} => ${dst}`);
-        this.log.info(`TCP stream ${chalk.bold(streamId)} ${chalk.green('CLOSED')} (${streamDescription})`);
+        this.log.info(`TCP stream ${chalk.bold(streamId)} ${chalk.green('OPENED')} (${streamDescription})`);
 
         const stream = new pcap.TCPSession();
         const session = this.sessions.create(streamId, {
