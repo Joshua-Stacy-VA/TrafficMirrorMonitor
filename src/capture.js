@@ -111,15 +111,16 @@ class Capture {
 
         stream
             .on('data send', (streamObj, data) => {
-                this.log.debug(`[${shortId}] SOURCE SEND: ${src} => ${dst} ${data.toString().slice(0, 10)}`);
+                this.log.debug(`[${shortId}] CLIENT: ${src} => ${dst} ${data.toString().slice(0, 15)}`);
                 session.clientData(data);
             })
             .on('data recv', (streamObj, data) => {
-                this.log.debug(`[${shortId}] DEST SEND: ${dst} => ${src} ${data.toString().slice(0, 10)}`);
+                this.log.debug(`[${shortId}] TARGET: ${dst} => ${src} ${data.toString().slice(0, 15)}`);
                 session.targetData(data);
             })
-            .on('end', () => {
+            .on('end', (streamObj) => {
                 this.log.info(`TCP stream ${chalk.bold(shortId)} ${chalk.yellow('CLOSED')} (${streamDescription})`);
+                console.log(streamObj.state);
                 session.close();
                 this.deleteTCPStream(key);
             });
