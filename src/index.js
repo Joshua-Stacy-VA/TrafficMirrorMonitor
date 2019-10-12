@@ -1,6 +1,7 @@
 'use strict';
 
 const Bottle = require('bottlejs');
+const chalk = require('chalk');
 const { Configuration } = require('./configuration');
 const { Logger } = require('./logger');
 const { Process } = require('./process');
@@ -25,10 +26,7 @@ const {
 } = system.container;
 
 const log = LoggerService.getLogger();
+const { version } = ConfigurationService.get();
 
-
-(async () => {
-    const { version } = ConfigurationService.get();
-
-    log.info(`Traffic Mirror Monitor, version ${version}`);
-})();
+const versionString = chalk.bold(version);
+log.info(`Traffic Mirror Monitor, version ${versionString}`);
