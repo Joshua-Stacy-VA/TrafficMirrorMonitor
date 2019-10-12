@@ -1,6 +1,6 @@
 {
     "capture": {
-        "device": "lo0"
+        "device": "eth0"
     },
     "store": {
         "type": "local",
