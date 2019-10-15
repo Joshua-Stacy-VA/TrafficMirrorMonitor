@@ -6,6 +6,118 @@ const chalk = require('chalk');
 
 const VXLAN_PCAP_FILTER = 'udp port 4789';
 
+// ==================================================== TCP Stream =====================================================
+class TCPStream {
+    constructor(options) {
+        const streamId = uuid();
+        const [shortId] = streamId.split('-');
+
+        const { src, dst } = options;
+        const description = chalk.bold(`${src} => ${dst}`);
+
+        const session = this.sessions.create(streamId, {
+            client: src,
+            target: dst,
+        });
+
+        const stream = new pcap.TCPSession();
+
+        Object.assign(this, {
+            streamId,
+            shortId,
+            description,
+            session,
+            stream,
+            ...options,
+        });
+    }
+
+    open() {
+        const {
+            src, dst, shortId, description, log, session, stream,
+        } = this;
+
+        log.info(`TCP stream ${chalk.bold(shortId)} ${chalk.green('OPENED')} (${description})`);
+
+        session.open();
+
+        stream
+            .on('data send', (_, data) => {
+                log.debug(`[${shortId}] CLIENT: ${src} => ${dst} ${data.toString().slice(0, 15)}`);
+                session.clientData(data);
+            })
+            .on('data recv', (_, data) => {
+                log.debug(`[${shortId}] TARGET: ${dst} => ${src} ${data.toString().slice(0, 15)}`);
+                session.targetData(data);
+            })
+            .on('end', () => {
+                this.close();
+            });
+    }
+
+    close() {
+        if (this.isClosed) {
+            return;
+        }
+        this.isClosed = true;
+
+        const {
+            shortId, description, log, session, stream,
+        } = this;
+
+        log.info(`TCP stream ${chalk.bold(shortId)} ${chalk.yellow('CLOSED')} (${description})`);
+        session.close();
+        stream.removeAllListeners();
+
+        Object.assign(this, {
+            session: null,
+            stream: null,
+        });
+    }
+
+    track(packet) {
+        if (this.isClosed || !this.stream) {
+            return;
+        }
+        this.stream.track(packet);
+    }
+
+    static createKey(src, dst) {
+        return (src < dst) ? `${src}-${dst}` : `${dst}-${src}`;
+    }
+}
+
+// ================================================ TCP Stream Manager =================================================
+class TCPStreamManager extends Map {
+    constructor({ log }) {
+        super();
+        Object.assign(this, { log });
+    }
+
+    getStream(src, dst) {
+        const key = TCPStream.createKey(src, dst);
+        if (!this.has(key)) {
+            const stream = new TCPStream({ src, dst, log: this.log });
+
+            stream.open();
+            this.set(key, stream);
+        }
+
+        return this.get(key);
+    }
+
+    deleteStream(key) {
+        const stream = this.get(key);
+        if (!stream) {
+            return;
+        }
+
+        stream.close();
+        this.delete(key);
+    }
+}
+
+// ================================================== Capture Service ==================================================
 class Capture {
     constructor(options) {
         const {
@@ -15,7 +127,7 @@ class Capture {
         Object.assign(this, {
             log,
             sessions,
-            streams: new Map(),
+            streams: new TCPStreamManager({ log }),
             onPacketCapture: this.onPacketCapture.bind(this),
         });
 
@@ -27,6 +139,7 @@ class Capture {
 
         this.listener.on('packet', this.onPacketCapture);
     }
+
 
     // Packets here should contain the following structure:
     //    Ethernet => IPv4 => UDP => VxLAN => Ethernet => IPv4 => TCP => $$
@@ -81,76 +194,8 @@ class Capture {
         const src = `${saddr}:${sport}`;
         const dst = `${daddr}:${dport}`;
 
-        const key = (src < dst) ? `${src}-${dst}` : `${dst}-${src}`;
-        const stream = this.getTCPStream(key, { src, dst });
-
-        if (stream.isClosed) {
-            console.log(Capture.getPayloadRecursive(packet, 3));
-        }
-
+        const stream = this.streams.getStream(src, dst);
         stream.track(packet);
-    }
-
-    getTCPStream(key, options) {
-        if (!this.streams.has(key)) {
-            this.streams.set(key, this.createTCPStream(key, options));
-        }
-
-        const { stream } = this.streams.get(key);
-        return stream;
-    }
-
-    createTCPStream(key, options) {
-        const streamId = uuid();
-        const [shortId] = streamId.split('-');
-
-        const { src, dst } = options;
-        const streamDescription = chalk.bold(`${src} => ${dst}`);
-        this.log.info(`TCP stream ${chalk.bold(shortId)} ${chalk.green('OPENED')} (${streamDescription})`);
-
-        const stream = new pcap.TCPSession();
-        const session = this.sessions.create(streamId, {
-            client: src,
-            target: dst,
-        });
-        session.open();
-
-        stream
-            .on('data send', (streamObj, data) => {
-                this.log.debug(`[${shortId}] CLIENT: ${src} => ${dst} ${data.toString().slice(0, 15)}`);
-                session.clientData(data);
-            })
-            .on('data recv', (streamObj, data) => {
-                this.log.debug(`[${shortId}] TARGET: ${dst} => ${src} ${data.toString().slice(0, 15)}`);
-                session.targetData(data);
-            })
-            .on('end', (streamObj) => {
-                this.log.info(`TCP stream ${chalk.bold(shortId)} ${chalk.yellow('CLOSED')} (${streamDescription})`);
-                console.log(streamObj.state);
-                streamObj.isClosed = true;
-                session.close();
-                this.deleteTCPStream(key);
-            });
-
-        return {
-            id: streamId,
-            stream,
-            session,
-        };
-    }
-
-    deleteTCPStream(key) {
-        const streamObj = this.streams.get(key);
-        if (!streamObj) {
-            return;
-        }
-
-        const { id } = streamObj;
-
-        // Object.assign(streamObj, { stream: null, session: null });
-
-        // this.sessions.delete(id);
-        // this.streams.delete(key);
     }
 
     static getPayloadRecursive(packet = {}, levels = 0) {
