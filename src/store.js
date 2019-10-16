@@ -5,12 +5,58 @@ const { DateTime } = require('luxon');
 const fs = require('fs-extra');
 const AWS = require('aws-sdk');
 
-const STORE_CLASS_MAP = {};
-
+// ================================================ Base Storage Class =================================================
 class Store {
     constructor(options) {
-        const { log } = options;
-        Object.assign(this, { log });
+        Object.assign(this, {
+            sessions: new Map(),
+            ...options,
+        });
+
+        const { type } = this;
+        this.StoreClass = Store.classMap[type];
+    }
+
+    data(id, source, data) {
+        const session = this.sessions.get(id);
+        if (!session) {
+            return;
+        }
+
+        const { payload } = session;
+
+        payload[source].push({
+            data,
+            timestamp: Date.now(),
+            sequenceNumber: '',
+        });
+    }
+
+    open(id, { client, target }) {
+        this.sessions.set(id, {
+            id,
+            client,
+            target,
+            payload: {
+                client: [],
+                target: [],
+                control: [],
+            },
+        });
+
+        this.data(id, 'control', 'LINK_ESTABLISH');
+    }
+
+    close(id) {
+        this.data(id, 'control', 'LINK_TEARDOWN');
+    }
+
+    clientData(id, data) {
+        this.data(id, 'client', data.toString());
+    }
+
+    targetData(id, data) {
+        this.data(id, 'target', data.toString());
     }
 
     static generateFileName(data) {
@@ -25,13 +71,16 @@ class Store {
 
         const { store } = Configuration.get();
         const { type, options } = store;
-        const StoreClass = STORE_CLASS_MAP[type];
+        const StoreClass = Store.classMap[type];
 
         const storeInstance = new StoreClass({ log, ...options });
         return storeInstance;
     }
 }
 
+Store.classMap = {};
+
+// ============================================= File-based Local Storage ==============================================
 class LocalStore extends Store {
     constructor(options) {
         super(options);
@@ -50,9 +99,9 @@ class LocalStore extends Store {
     }
 }
 
-STORE_CLASS_MAP.local = LocalStore;
+Store.classMap.local = LocalStore;
 
-
+// ================================================== AWS S3 Storage ===================================================
 class S3Store extends Store {
     constructor(options) {
         super(options);
@@ -74,7 +123,7 @@ class S3Store extends Store {
     }
 }
 
-STORE_CLASS_MAP.s3 = S3Store;
+Store.classMap.s3 = S3Store;
 
 
 module.exports = { Store };

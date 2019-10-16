@@ -15,18 +15,12 @@ class TCPStream {
         const { src, dst } = options;
         const description = chalk.bold(`${src} => ${dst}`);
 
-        const session = this.sessions.create(streamId, {
-            client: src,
-            target: dst,
-        });
-
         const stream = new pcap.TCPSession();
 
         Object.assign(this, {
             streamId,
             shortId,
             description,
-            session,
             stream,
             ...options,
         });
@@ -34,21 +28,21 @@ class TCPStream {
 
     open() {
         const {
-            src, dst, shortId, description, log, session, stream,
+            src, dst, streamId, shortId, description, log, store, stream,
         } = this;
 
         log.info(`TCP stream ${chalk.bold(shortId)} ${chalk.green('OPENED')} (${description})`);
 
-        session.open();
+        store.open(streamId, { client: src, target: dst });
 
         stream
             .on('data send', (_, data) => {
                 log.debug(`[${shortId}] CLIENT: ${src} => ${dst} ${data.toString().slice(0, 15)}`);
-                session.clientData(data);
+                store.clientData(data);
             })
             .on('data recv', (_, data) => {
                 log.debug(`[${shortId}] TARGET: ${dst} => ${src} ${data.toString().slice(0, 15)}`);
-                session.targetData(data);
+                store.targetData(data);
             })
             .on('end', () => {
                 this.close();
@@ -89,15 +83,18 @@ class TCPStream {
 
 // ================================================ TCP Stream Manager =================================================
 class TCPStreamManager extends Map {
-    constructor({ log }) {
+    constructor({ log, store }) {
         super();
-        Object.assign(this, { log });
+        Object.assign(this, { log, store });
     }
 
     getStream(src, dst) {
         const key = TCPStream.createKey(src, dst);
         if (!this.has(key)) {
-            const stream = new TCPStream({ src, dst, log: this.log });
+            const { log, store } = this;
+            const stream = new TCPStream({
+                src, dst, store, log,
+            });
 
             stream.open();
             this.set(key, stream);
@@ -121,13 +118,13 @@ class TCPStreamManager extends Map {
 class Capture {
     constructor(options) {
         const {
-            log, device, sessions, filter = VXLAN_PCAP_FILTER,
+            log, device, store, filter = VXLAN_PCAP_FILTER,
         } = options;
 
         Object.assign(this, {
             log,
-            sessions,
-            streams: new TCPStreamManager({ log }),
+            store,
+            streams: new TCPStreamManager({ log, store }),
             onPacketCapture: this.onPacketCapture.bind(this),
         });
 
@@ -207,13 +204,13 @@ class Capture {
     }
 
     static createCapture(system) {
-        const { Configuration, Logger, Sessions } = system;
+        const { Configuration, Logger, Store } = system;
         const log = Logger.getLogger();
 
         const { capture } = Configuration.get();
         const { device } = capture;
 
-        const captureInstance = new Capture({ log, device, sessions: Sessions });
+        const captureInstance = new Capture({ log, device, store: Store });
         return captureInstance;
     }
 }
