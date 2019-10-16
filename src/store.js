@@ -11,10 +11,14 @@ class Store extends Map {
     constructor(options) {
         super();
 
-        const { log, threshold = 200, ...rest } = options;
+        const {
+            log, threshold = 200, timeout = 6000, ...rest
+        } = options;
+
         Object.assign(this, {
             log,
             threshold,
+            timeout,
             queue: new PQueue(),
             sequenceId: 0,
             ...rest,
@@ -73,8 +77,12 @@ class Store extends Map {
 
     reset(id) {
         const session = this.get(id);
+        const { timer = {} } = session;
+        clearTimeout(timer);
+
         Object.assign(session, {
             count: 0,
+            timer: setTimeout(() => this.flush(id), this.timeout),
             payload: {
                 client: [],
                 target: [],
@@ -89,20 +97,27 @@ class Store extends Map {
             return;
         }
 
-        const { client, target, payload } = session;
+        const {
+            client, target, payload, count,
+        } = session;
+        if (count === 0) {
+            return;
+        }
+
         const data = {
             id,
             client,
             target,
             payload,
         };
-        this.reset(id);
 
         this.queue.add(async () => {
             const fileName = Store.generateFileName(data);
             this.log.debug(`Writing ${fileName}...`);
             await this.write(fileName, data);
         });
+
+        this.reset(id);
     }
 
     clientData({ id, data }) {
