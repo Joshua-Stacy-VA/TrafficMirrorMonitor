@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const { default: PQueue } = require('p-queue');
+const PQueue = require('p-queue');
 const { DateTime } = require('luxon');
 const fs = require('fs-extra');
 const AWS = require('aws-sdk');
