@@ -33,16 +33,16 @@ class TCPStream {
 
         log.info(`TCP stream ${chalk.bold(shortId)} ${chalk.green('OPENED')} (${description})`);
 
-        store.open(streamId, { client: src, target: dst });
+        store.open({ id: streamId, client: src, target: dst });
 
         stream
             .on('data send', (_, data) => {
                 log.debug(`[${shortId}] CLIENT (${src} => ${dst}) ${data.length} bytes`);
-                store.clientData(streamId, data);
+                store.clientData({ id: streamId, data });
             })
             .on('data recv', (_, data) => {
                 log.debug(`[${shortId}] TARGET (${dst} => ${src}) ${data.length} bytes`);
-                store.targetData(streamId, data);
+                store.targetData({ id: streamId, data });
             })
             .on('end', () => {
                 this.close();
@@ -60,7 +60,7 @@ class TCPStream {
         } = this;
 
         log.info(`TCP stream ${chalk.bold(shortId)} ${chalk.yellow('CLOSED')} (${description})`);
-        store.close(streamId);
+        store.close({ id: streamId });
         stream.removeAllListeners();
 
         Object.assign(this, {

@@ -1,24 +1,27 @@
 'use strict';
 
 const path = require('path');
+const { default: PQueue } = require('p-queue');
 const { DateTime } = require('luxon');
 const fs = require('fs-extra');
 const AWS = require('aws-sdk');
 
 // ================================================ Base Storage Class =================================================
-class Store {
+class Store extends Map {
     constructor(options) {
+        super();
         Object.assign(this, {
-            sessions: new Map(),
             ...options,
+            queue: new PQueue(),
+            sequenceId: 0,
         });
 
         const { type } = this;
         this.StoreClass = Store.classMap[type];
     }
 
-    data(id, source, data) {
-        const session = this.sessions.get(id);
+    push(id, source, data) {
+        const session = this.get(id);
         if (!session) {
             return;
         }
@@ -28,12 +31,14 @@ class Store {
         payload[source].push({
             data,
             timestamp: Date.now(),
-            sequenceNumber: '',
+            sequenceNumber: this.sequenceId.toString(),
         });
+
+        this.sequenceId += 1;
     }
 
-    open(id, { client, target }) {
-        this.sessions.set(id, {
+    open({ id, client, target }) {
+        this.set(id, {
             id,
             client,
             target,
@@ -44,19 +49,55 @@ class Store {
             },
         });
 
-        this.data(id, 'control', 'LINK_ESTABLISH');
+        this.push(id, 'control', 'LINK_ESTABLISH');
     }
 
-    close(id) {
-        this.data(id, 'control', 'LINK_TEARDOWN');
+    close({ id }) {
+        this.push(id, 'control', 'LINK_TEARDOWN');
+
+        const session = this.get(id);
+        if (!session) {
+            return;
+        }
+
+        session.isClosed = true;
+        this.flush(id);
+        this.delete(id);
     }
 
-    clientData(id, data) {
-        this.data(id, 'client', data.toString());
+    async flush(id) {
+        const session = this.get(id);
+        if (!session) {
+            return;
+        }
+
+        const { client, target, payload } = session;
+        const data = {
+            id,
+            client,
+            target,
+            payload,
+        };
+
+        Object.assign(session, {
+            payload: {
+                client: [],
+                target: [],
+                control: [],
+            },
+        });
+
+        this.queue.add(async () => {
+            await this.write(data);
+        });
     }
 
-    targetData(id, data) {
-        this.data(id, 'target', data.toString());
+    clientData({ id, data }) {
+        this.push(id, 'client', data.toString());
+    }
+
+    targetData({ id, data }) {
+        this.push(id, 'target', data.toString());
     }
 
     static generateFileName(data) {
