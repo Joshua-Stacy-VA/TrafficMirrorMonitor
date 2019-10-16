@@ -37,11 +37,11 @@ class TCPStream {
 
         stream
             .on('data send', (_, data) => {
-                log.debug(`[${shortId}] CLIENT: ${src} => ${dst} ${data.toString().slice(0, 15)}`);
+                log.debug(`[${shortId}] CLIENT (${src} => ${dst}) ${data.length} bytes`);
                 store.clientData(streamId, data);
             })
             .on('data recv', (_, data) => {
-                log.debug(`[${shortId}] TARGET: ${dst} => ${src} ${data.toString().slice(0, 15)}`);
+                log.debug(`[${shortId}] TARGET (${dst} => ${src}) ${data.length} bytes`);
                 store.targetData(streamId, data);
             })
             .on('end', () => {
