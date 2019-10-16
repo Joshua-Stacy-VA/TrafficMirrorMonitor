@@ -38,11 +38,11 @@ class TCPStream {
         stream
             .on('data send', (_, data) => {
                 log.debug(`[${shortId}] CLIENT: ${src} => ${dst} ${data.toString().slice(0, 15)}`);
-                store.clientData(data);
+                store.clientData(streamId, data);
             })
             .on('data recv', (_, data) => {
                 log.debug(`[${shortId}] TARGET: ${dst} => ${src} ${data.toString().slice(0, 15)}`);
-                store.targetData(data);
+                store.targetData(streamId, data);
             })
             .on('end', () => {
                 this.close();
@@ -56,15 +56,15 @@ class TCPStream {
         this.isClosed = true;
 
         const {
-            shortId, description, log, session, stream,
+            streamId, shortId, description, log, store, stream,
         } = this;
 
         log.info(`TCP stream ${chalk.bold(shortId)} ${chalk.yellow('CLOSED')} (${description})`);
-        session.close();
+        store.close(streamId);
         stream.removeAllListeners();
 
         Object.assign(this, {
-            session: null,
+            store: null,
             stream: null,
         });
     }
