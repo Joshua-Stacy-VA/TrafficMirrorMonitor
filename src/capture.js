@@ -177,11 +177,7 @@ class Capture {
             link_type: 'LINKTYPE_ETHERNET',
         });
 
-        this.trackPacket(vxlanPacket);
-    }
-
-    trackPacket(packet) {
-        const ip = Capture.getPayloadRecursive(packet, 2);
+        const ip = Capture.getPayloadRecursive(vxlanPacket, 2);
         if (!ip) {
             return;
         }
@@ -192,7 +188,7 @@ class Capture {
         const dst = `${daddr}:${dport}`;
 
         const stream = this.streams.getStream(src, dst);
-        stream.track(packet);
+        stream.track(vxlanPacket);
     }
 
     static getPayloadRecursive(packet = {}, levels = 0) {
