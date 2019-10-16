@@ -10,10 +10,14 @@ const AWS = require('aws-sdk');
 class Store extends Map {
     constructor(options) {
         super();
+
+        const { log, threshold = 200, ...rest } = options;
         Object.assign(this, {
-            ...options,
+            log,
+            threshold,
             queue: new PQueue(),
             sequenceId: 0,
+            ...rest,
         });
 
         const { type } = this;
@@ -26,15 +30,22 @@ class Store extends Map {
             return;
         }
 
-        const { payload } = session;
+        const { payload, count } = session;
+        const { [source]: dataList } = payload;
 
-        payload[source].push({
+        dataList.push({
             data,
             timestamp: Date.now(),
             sequenceNumber: this.sequenceId.toString(),
         });
 
         this.sequenceId += 1;
+
+        if (count > this.threshold) {
+            this.flush(id);
+        } else {
+            Object.assign(session, { count: count + 1 });
+        }
     }
 
     open({ id, client, target }) {
@@ -42,13 +53,8 @@ class Store extends Map {
             id,
             client,
             target,
-            payload: {
-                client: [],
-                target: [],
-                control: [],
-            },
         });
-
+        this.reset(id);
         this.push(id, 'control', 'LINK_ESTABLISH');
     }
 
@@ -65,6 +71,18 @@ class Store extends Map {
         this.delete(id);
     }
 
+    reset(id) {
+        const session = this.get(id);
+        Object.assign(session, {
+            count: 0,
+            payload: {
+                client: [],
+                target: [],
+                control: [],
+            },
+        });
+    }
+
     async flush(id) {
         const session = this.get(id);
         if (!session) {
@@ -78,17 +96,12 @@ class Store extends Map {
             target,
             payload,
         };
-
-        Object.assign(session, {
-            payload: {
-                client: [],
-                target: [],
-                control: [],
-            },
-        });
+        this.reset(id);
 
         this.queue.add(async () => {
-            await this.write(data);
+            const fileName = Store.generateFileName(data);
+            this.log.debug(`Writing ${fileName}...`);
+            await this.write(fileName, data);
         });
     }
 
@@ -134,8 +147,7 @@ class LocalStore extends Store {
         fs.ensureDirSync(baseDir);
     }
 
-    async write(data) {
-        const fileName = Store.generateFileName(data);
+    async write(fileName, data) {
         await fs.writeJson(path.join(this.baseDir, fileName), data, { spaces: 2 });
     }
 }
@@ -154,8 +166,7 @@ class S3Store extends Store {
         });
     }
 
-    async write(data) {
-        const fileName = Store.generateFileName(data);
+    async write(fileName, data) {
         await this.s3.putObject({
             Bucket: this.bucket,
             Key: fileName,
