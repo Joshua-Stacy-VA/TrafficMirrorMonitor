@@ -44,7 +44,7 @@ class Session extends EventEmitter {
         const { [source]: list } = payload;
 
         list.push({
-            data,
+            data: data.toString(),
             timestamp: Date.now(),
             sequenceNumber: this.nextSequenceId(),
         });
