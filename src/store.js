@@ -6,6 +6,7 @@ const chalk = require('chalk');
 const PQueue = require('p-queue');
 const fs = require('fs-extra');
 const AWS = require('aws-sdk');
+const pick = require('lodash.pick');
 
 class Session extends EventEmitter {
     constructor(id, options) {
@@ -40,8 +41,7 @@ class Session extends EventEmitter {
             return;
         }
 
-        const { payload } = this;
-        const { [source]: list } = payload;
+        const { [source]: list } = this.payload;
 
         list.push({
             data: data.toString(),
@@ -68,18 +68,10 @@ class Session extends EventEmitter {
             return;
         }
 
-        const {
-            id, client, target, payload,
-        } = this;
-
+        const data = pick(this, 'id', 'client', 'target', 'payload');
         this.reset();
 
-        return {
-            id,
-            client,
-            target,
-            payload,
-        };
+        return data;
     }
 
     nextSequenceId() {
@@ -150,8 +142,8 @@ class Store extends Map {
         this.push(id, 'control', 'LINK_ESTABLISH');
     }
 
-    close(id) {
-        this.push(id, 'control', 'LINK_TEARDOWN');
+    close(id, source = 'TARGET') {
+        this.push(id, 'control', `LINK_${source}_TEARDOWN`);
 
         const session = this.get(id);
         if (session) {
