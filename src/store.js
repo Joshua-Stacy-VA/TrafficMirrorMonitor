@@ -108,7 +108,7 @@ class Store extends Map {
         const { type } = this;
         this.StoreClass = Store.classMap[type];
 
-        this.log.debug(`Store saving data every ${chalk.bold(timeout / 1000)} seconds`);
+        this.log.info(`Store saving data every ${chalk.bold(timeout / 1000)} seconds`);
         this.flush = setInterval(() => {
             this.forEach(this.checkData);
         }, timeout);
