@@ -55,23 +55,23 @@ class TCPStream extends EventEmitter {
 
 // ================================================ TCP Stream Manager =================================================
 class TCPStreamManager extends Map {
-    constructor({ log, store }) {
+    constructor({ log, store, delay = 500 }) {
         super();
-        Object.assign(this, { log, store });
+        Object.assign(this, { log, store, delay });
     }
 
     getStream(src, dst) {
         const key = TCPStreamManager.createKey(src, dst);
         if (!this.has(key)) {
-            const stream = this.createStream(src, dst);
+            const stream = this.createStream(src, dst, key);
             this.set(key, stream);
         }
 
         return this.get(key);
     }
 
-    createStream(src, dst) {
-        const { store, log } = this;
+    createStream(src, dst, key) {
+        const { store, log, delay } = this;
 
         const id = uuid();
 
@@ -97,6 +97,9 @@ class TCPStreamManager extends Map {
             .on('CLOSE', () => {
                 store.close(id);
                 log.info(`[${streamId}] TCP stream ${chalk.yellow('CLOSED')} (${fromClient})`);
+
+                // Delay the actual removal of the stream, since we may receive the dying ember packets of this stream
+                setTimeout(() => this.deleteStream(key), delay);
             });
 
         return stream;
@@ -107,6 +110,10 @@ class TCPStreamManager extends Map {
         if (!stream) {
             return;
         }
+
+        const { shortId } = stream;
+        const streamId = chalk.bold(shortId);
+        this.log.debug(`[${streamId}] Stream resources removed`);
 
         stream.close();
         stream.removeAllListeners();
