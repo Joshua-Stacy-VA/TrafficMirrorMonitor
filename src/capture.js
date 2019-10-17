@@ -1,5 +1,6 @@
 'use strict';
 
+const EventEmitter = require('events');
 const pcap = require('pcap');
 const uuid = require('uuid/v4');
 const chalk = require('chalk');
@@ -7,42 +8,25 @@ const chalk = require('chalk');
 const VXLAN_PCAP_FILTER = 'udp port 4789';
 
 // ==================================================== TCP Stream =====================================================
-class TCPStream {
-    constructor(options) {
-        const streamId = uuid();
+class TCPStream extends EventEmitter {
+    constructor(streamId) {
+        super();
         const [shortId] = streamId.split('-');
-
-        const { src, dst } = options;
-        const description = chalk.bold(`${src} => ${dst}`);
-
         const stream = new pcap.TCPSession();
 
         Object.assign(this, {
-            streamId,
+            id: streamId,
             shortId,
-            description,
             stream,
-            ...options,
+            isClosed: false,
         });
-    }
-
-    open() {
-        const {
-            src, dst, streamId, shortId, description, log, store, stream,
-        } = this;
-
-        log.info(`TCP stream ${chalk.bold(shortId)} ${chalk.green('OPENED')} (${description})`);
-
-        store.open({ id: streamId, client: src, target: dst });
 
         stream
             .on('data send', (_, data) => {
-                log.debug(`[${shortId}] CLIENT (${src} => ${dst}) ${data.length} bytes`);
-                store.clientData({ id: streamId, data });
+                this.emit('CLIENT', data);
             })
             .on('data recv', (_, data) => {
-                log.debug(`[${shortId}] TARGET (${dst} => ${src}) ${data.length} bytes`);
-                store.targetData({ id: streamId, data });
+                this.emit('TARGET', data);
             })
             .on('end', () => {
                 this.close();
@@ -53,20 +37,14 @@ class TCPStream {
         if (this.isClosed) {
             return;
         }
+
         this.isClosed = true;
+        this.emit('CLOSE');
 
-        const {
-            streamId, shortId, description, log, store, stream,
-        } = this;
+        this.removeAllListeners();
+        this.stream.removeAllListeners();
 
-        log.info(`TCP stream ${chalk.bold(shortId)} ${chalk.yellow('CLOSED')} (${description})`);
-        store.close({ id: streamId });
-        stream.removeAllListeners();
-
-        Object.assign(this, {
-            store: null,
-            stream: null,
-        });
+        Object.assign(this, { stream: null });
     }
 
     track(packet) {
@@ -74,10 +52,6 @@ class TCPStream {
             return;
         }
         this.stream.track(packet);
-    }
-
-    static createKey(src, dst) {
-        return (src < dst) ? `${src}-${dst}` : `${dst}-${src}`;
     }
 }
 
@@ -89,18 +63,43 @@ class TCPStreamManager extends Map {
     }
 
     getStream(src, dst) {
-        const key = TCPStream.createKey(src, dst);
+        const key = TCPStreamManager.createKey(src, dst);
         if (!this.has(key)) {
-            const { log, store } = this;
-            const stream = new TCPStream({
-                src, dst, store, log,
-            });
-
-            stream.open();
+            const stream = this.createStream(src, dst);
             this.set(key, stream);
         }
 
         return this.get(key);
+    }
+
+    createStream(src, dst) {
+        const { store, log } = this;
+
+        const id = uuid();
+
+        const stream = new TCPStream(id);
+
+        const { shortId } = stream;
+        const streamId = chalk.bold(shortId);
+        const fromClient = chalk.bold(`${src} => ${dst}`);
+        const fromTarget = chalk.bold(`${src} => ${dst}`);
+
+        log.info(`TCP stream ${streamId} ${chalk.green('OPENED')} (${fromClient})`);
+        store.open(id, { client: src, target: dst });
+
+        stream
+            .on('CLIENT', (data) => {
+                log.debug(`[${streamId}] CLIENT (${fromClient}) ${data.length} bytes`);
+                store.clientData(id, data);
+            })
+            .on('TARGET', (data) => {
+                log.debug(`[${streamId}] TARGET (${fromTarget}) ${data.length} bytes`);
+                store.targetData(id, data);
+            })
+            .on('CLOSE', () => {
+                store.close(id);
+                log.info(`TCP stream ${streamId} ${chalk.yellow('CLOSED')} (${fromClient})`);
+            });
     }
 
     deleteStream(key) {
@@ -110,7 +109,13 @@ class TCPStreamManager extends Map {
         }
 
         stream.close();
+        stream.removeAllListeners();
+
         this.delete(key);
+    }
+
+    static createKey(src, dst) {
+        return (src < dst) ? `${src}-${dst}` : `${dst}-${src}`;
     }
 }
 

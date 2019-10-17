@@ -1,10 +1,92 @@
 'use strict';
 
+const EventEmitter = require('events');
 const path = require('path');
 const PQueue = require('p-queue');
-const { DateTime } = require('luxon');
 const fs = require('fs-extra');
 const AWS = require('aws-sdk');
+
+class Session extends EventEmitter {
+    constructor(id, options) {
+        super();
+
+        const { client, target } = options;
+        Object.assign(this, {
+            id,
+            client,
+            target,
+            isClosed: false,
+        });
+        this.reset();
+    }
+
+    reset() {
+        Object.assign(this, {
+            payload: {
+                client: [],
+                target: [],
+                control: [],
+            },
+            count: 0,
+            seqeunceId: 0,
+        });
+    }
+
+    push(source, data) {
+        if (this.isClosed) {
+            return;
+        }
+
+        const { payload } = this;
+        const { [source]: list } = payload;
+
+        list.push({
+            data,
+            timestamp: Date.now(),
+            sequenceNumber: this.nextSequenceValue(),
+        });
+
+        // Check thresholds, if we're beyond then flush the session
+    }
+
+    close() {
+        if (this.isClosed) {
+            return;
+        }
+
+        this.isClosed = true;
+        this.emit('CLOSE');
+
+        this.removeAllListeners();
+
+        // TODO: Shutdown timeout listeners
+    }
+
+    flush() {
+        if (!this.count) {
+            return;
+        }
+
+        const {
+            id, client, target, payload,
+        } = this;
+
+        const data = {
+            id,
+            client,
+            target,
+            payload,
+        };
+
+        this.emit('DATA', data);
+        this.reset();
+    }
+
+    nextSeqeunceId() {
+        this.sequenceId += 1;
+        return this.sequenceId.toString().padStart(32, '0');
+    }
+}
 
 // ================================================ Base Storage Class =================================================
 class Store extends Map {
@@ -20,7 +102,6 @@ class Store extends Map {
             threshold,
             timeout,
             queue: new PQueue(),
-            sequenceId: 0,
             ...rest,
         });
 
@@ -28,110 +109,58 @@ class Store extends Map {
         this.StoreClass = Store.classMap[type];
     }
 
-    push(id, source, data) {
-        const session = this.get(id);
-        if (!session) {
-            return;
-        }
+    open(id, options) {
+        const { threshold, timeout } = this;
 
-        const { payload, count } = session;
-        const { [source]: dataList } = payload;
+        const session = new Session(id, { threshold, timeout, ...options });
+        this.log.debug(`Opening store session ${id}`);
 
-        dataList.push({
-            data,
-            timestamp: Date.now(),
-            sequenceNumber: this.sequenceId.toString(),
-        });
+        session
+            .on('DATA', (data) => {
+                this.queue.add(async () => {
+                    const fileName = Store.generateFileName(data);
+                    this.log.debug(`Store session ${id} writing ${fileName}...`);
+                    await this.write(fileName, data);
+                });
+            })
+            .on('CLOSE', () => {
+                this.log.debug(`Closing store session ${id}`);
+                session.removeAllListeners();
+                this.delete(id);
+            });
 
-        this.sequenceId += 1;
+        this.set(id, session);
 
-        if (count > this.threshold) {
-            this.flush(id);
-        } else {
-            Object.assign(session, { count: count + 1 });
-        }
-    }
-
-    open({ id, client, target }) {
-        this.set(id, {
-            id,
-            client,
-            target,
-        });
-        this.reset(id);
         this.push(id, 'control', 'LINK_ESTABLISH');
     }
 
-    close({ id }) {
+    close(id) {
         this.push(id, 'control', 'LINK_TEARDOWN');
 
         const session = this.get(id);
-        if (!session) {
-            return;
+        if (session) {
+            session.close();
         }
-
-        session.isClosed = true;
-        this.flush(id);
-        this.delete(id);
     }
 
-    reset(id) {
+    clientData(id, data) {
+        this.push(id, 'client', data);
+    }
+
+    targetData(id, data) {
+        this.push(id, 'target', data);
+    }
+
+    push(id, source, data) {
         const session = this.get(id);
-        const { timer = {} } = session;
-        clearTimeout(timer);
-
-        Object.assign(session, {
-            count: 0,
-            timer: setTimeout(() => this.flush(id), this.timeout),
-            payload: {
-                client: [],
-                target: [],
-                control: [],
-            },
-        });
-    }
-
-    async flush(id) {
-        const session = this.get(id);
-        if (!session) {
-            return;
+        if (session) {
+            session.push(source, data);
         }
-
-        const {
-            client, target, payload, count,
-        } = session;
-        if (count === 0) {
-            return;
-        }
-
-        const data = {
-            id,
-            client,
-            target,
-            payload,
-        };
-
-        this.queue.add(async () => {
-            const fileName = Store.generateFileName(data);
-            this.log.debug(`Writing ${fileName}...`);
-            await this.write(fileName, data);
-        });
-
-        this.reset(id);
-    }
-
-    clientData({ id, data }) {
-        this.push(id, 'client', data.toString());
-    }
-
-    targetData({ id, data }) {
-        this.push(id, 'target', data.toString());
     }
 
     static generateFileName(data) {
-        const { id } = data;
-        const timestamp = DateTime.utc().toMillis();
-        return `${timestamp}_${id}.json`;
+        const { id = 'UNKNOWN' } = data;
+        return `${Date.now()}_${id}.json`;
     }
 
     static createStore(system) {
