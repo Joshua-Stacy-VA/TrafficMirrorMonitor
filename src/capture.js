@@ -100,6 +100,8 @@ class TCPStreamManager extends Map {
                 store.close(id);
                 log.info(`TCP stream ${streamId} ${chalk.yellow('CLOSED')} (${fromClient})`);
             });
+
+        return stream;
     }
 
     deleteStream(key) {
@@ -133,7 +135,7 @@ class Capture {
             onPacketCapture: this.onPacketCapture.bind(this),
         });
 
-        this.log.info(`Capture listening on device ${device}, filtering packets with "${filter}"`);
+        this.log.info(`Capture listening on device ${chalk.bold(device)}, filtering packets with "${chalk.bold(filter)}"`);
         Object.assign(this, {
             tcpTracker: new pcap.TCPTracker(),
             listener: pcap.createSession(device, filter),
