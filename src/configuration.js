@@ -1,5 +1,8 @@
 'use strict';
 
+const defaults = require('lodash.defaults');
+const cloneDeep = require('lodash.clonedeep');
+
 const args = require('minimist')(process.argv.slice(2), {
     alias: { c: 'config' },
     default: { config: './config/config.json' },
@@ -22,21 +25,25 @@ const OPTIONAL_DEFAULTS = {
 class Configuration {
     constructor() {
         const configFile = args.config;
-        this.config = fs.readJsonSync(configFile);
+        const config = fs.readJsonSync(configFile);
 
         // Check for required fields. If any of the required fields are not present, throw an exception
         REQUIRED_FIELDS.forEach((field) => {
-            if (!this.config[field]) {
+            if (!config[field]) {
                 throw new Error(`Required field ${field} is not present in the configuration`);
             }
         });
 
         // Apply defaults to the configuration data for the optional fields
-        this.config = Object.assign(OPTIONAL_DEFAULTS, this.config);
+        this.config = defaults(config, OPTIONAL_DEFAULTS, { version });
     }
 
     get() {
-        return Object.assign({}, this.config);
+        return cloneDeep(this.config);
+    }
+
+    getVersion() {
+        return this.version;
     }
 }
 
