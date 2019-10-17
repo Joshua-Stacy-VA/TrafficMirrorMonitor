@@ -20,13 +20,13 @@ system.factory('Store', Store.createStore);
 system.digest(['Process', 'Capture']);
 
 
+// Display the application and version information
 const {
     Logger: LoggerService,
     Configuration: ConfigurationService,
 } = system.container;
 
 const log = LoggerService.getLogger();
-const { version } = ConfigurationService.get();
+const version = chalk.bold(ConfigurationService.getVersion());
 
-const versionString = chalk.bold(version);
-log.info(`Traffic Mirror Monitor, version ${versionString}`);
+log.info(`Traffic Mirror Monitor, version ${version}`);
