@@ -43,7 +43,8 @@ class Configuration {
     }
 
     getVersion() {
-        return this.version;
+        const { version: versionValue = 'UNKNOWN' } = this.config;
+        return versionValue;
     }
 }
 
