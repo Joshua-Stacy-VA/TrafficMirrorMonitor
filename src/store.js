@@ -57,9 +57,6 @@ class Session extends EventEmitter {
 
         this.isClosed = true;
 
-        // Save any data that might be resident in the store, then perform clean-up
-        this.flush();
-
         this.emit('CLOSE');
         this.removeAllListeners();
     }
@@ -136,6 +133,9 @@ class Store extends Map {
 
         session.on('CLOSE', () => {
             this.log.debug(`[${chalk.bold(id)}] Closing data store`);
+            // Flush any data that might be resident in the session, then perform clean-up
+            this.checkData(session);
+
             session.removeAllListeners();
             this.delete(id);
         });
