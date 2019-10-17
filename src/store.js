@@ -43,7 +43,7 @@ class Session extends EventEmitter {
         list.push({
             data,
             timestamp: Date.now(),
-            sequenceNumber: this.nextSequenceValue(),
+            sequenceNumber: this.nextSequenceId(),
         });
 
         this.count += 1;
