@@ -12,8 +12,10 @@ class Session extends EventEmitter {
         super();
 
         const { client, target } = options;
+        const [shortId] = id.split('-');
         Object.assign(this, {
             id,
+            shortId,
             client,
             target,
             isClosed: false,
@@ -118,21 +120,24 @@ class Store extends Map {
             return;
         }
 
-        const { id = 'UNKNOWN' } = session;
+        const { shortId = 'UNKNOWN' } = session;
 
         this.queue.add(async () => {
             const fileName = Store.generateFileName(data);
-            this.log.debug(`[${chalk.bold(id)}] Storing data: ${chalk.bold(fileName)}`);
+            this.log.debug(`[${chalk.bold(shortId)}] Storing data: ${chalk.bold(fileName)}`);
             await this.write(fileName, data);
         });
     }
 
     open(id, { client, target }) {
         const session = new Session(id, { client, target });
-        this.log.debug(`[${chalk.bold(id)}] Opening data store`);
+        const { shortId } = session;
+
+        this.log.debug(`[${chalk.bold(shortId)}] Opening data store`);
 
         session.on('CLOSE', () => {
-            this.log.debug(`[${chalk.bold(id)}] Closing data store`);
+            this.log.debug(`[${chalk.bold(shortId)}] Closing data store`);
+
             // Flush any data that might be resident in the session, then perform clean-up
             this.checkData(session);
 
