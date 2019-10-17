@@ -84,7 +84,7 @@ class TCPStreamManager extends Map {
         const fromClient = chalk.bold(`${src} => ${dst}`);
         const fromTarget = chalk.bold(`${dst} => ${src}`);
 
-        log.info(`TCP stream ${streamId} ${chalk.green('OPENED')} (${fromClient})`);
+        log.info(`[${streamId}] TCP Stream ${chalk.green('OPENED')} (${fromClient})`);
         store.open(id, { client: src, target: dst });
 
         stream
@@ -98,7 +98,7 @@ class TCPStreamManager extends Map {
             })
             .on('CLOSE', () => {
                 store.close(id);
-                log.info(`TCP stream ${streamId} ${chalk.yellow('CLOSED')} (${fromClient})`);
+                log.info(`[${streamId}] TCP stream ${chalk.yellow('CLOSED')} (${fromClient})`);
             });
 
         return stream;

@@ -124,8 +124,8 @@ class Store extends Map {
 
         this.queue.add(async () => {
             const fileName = Store.generateFileName(data);
-            this.log.debug(`[${chalk.bold(shortId)}] Storing data: ${chalk.bold(fileName)}`);
             await this.write(fileName, data);
+            this.log.info(`[${chalk.bold(shortId)}] Saved data: ${chalk.bold(fileName)}`);
         });
     }
 
