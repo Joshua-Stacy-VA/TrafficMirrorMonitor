@@ -100,7 +100,7 @@ class Store extends Map {
         const { type } = this;
         this.StoreClass = Store.classMap[type];
 
-        this.log.info(`Store saving data every ${chalk.bold(timeout / 1000)} seconds`);
+        this.log.info(`Store saving stream data every ${chalk.bold(timeout / 1000)} seconds`);
         this.flush = setInterval(() => {
             this.forEach(this.checkData);
         }, timeout);
@@ -117,7 +117,7 @@ class Store extends Map {
         this.queue.add(async () => {
             const fileName = Store.generateFileName(data);
             await this.write(fileName, data);
-            this.log.info(`[${chalk.bold(shortId)}] Saved data: ${chalk.bold(fileName)}`);
+            this.log.info(`[${chalk.bold(shortId)}] Saved stream data: ${chalk.bold(fileName)}`);
         });
     }
 
@@ -125,10 +125,10 @@ class Store extends Map {
         const session = new Session(id, { client, target });
         const { shortId } = session;
 
-        this.log.debug(`[${chalk.bold(shortId)}] Opening data store`);
+        this.log.debug(`[${chalk.bold(shortId)}] Opening stream data store`);
 
         session.on('CLOSE', () => {
-            this.log.debug(`[${chalk.bold(shortId)}] Closing data store`);
+            this.log.debug(`[${chalk.bold(shortId)}] Closing stream data store`);
 
             // Flush any data that might be resident in the session, then perform clean-up
             this.checkData(session);
