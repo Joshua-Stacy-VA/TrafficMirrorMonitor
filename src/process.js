@@ -72,7 +72,14 @@ class Process {
         this.handleShutdown = (typeof shutdownFunc === 'function') ? shutdownFunc : this.handleShutdown;
     }
 
-    static createProcess(system) {
+    /**
+     * Static class factory method, used for BottleJS dependency injection
+     * @param  {Bottle} system BottleJS interface object
+     * @return {Process}
+     *
+     * See {@link https://github.com/young-steveo/bottlejs|BottleJS on GitHub} for more info on BottleJS
+     */
+    static create(system) {
         const { Logger } = system;
         const log = Logger.getLogger();
 

@@ -204,7 +204,14 @@ class Capture {
         return Capture.getPayloadRecursive(payload, levels - 1);
     }
 
-    static createCapture(system) {
+    /**
+     * Static class factory method, used for BottleJS dependency injection
+     * @param  {Bottle} system BottleJS interface object
+     * @return {Capture}
+     *
+     * See {@link https://github.com/young-steveo/bottlejs|BottleJS on GitHub} for more info on BottleJS
+     */
+    static create(system) {
         const { Configuration, Logger, Store } = system;
         const log = Logger.getLogger();
 

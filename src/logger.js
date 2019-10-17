@@ -19,16 +19,6 @@ class Logger {
         this.log.add(Logger.createTransport(config));
     }
 
-    static createLogger(system) {
-        const { Configuration } = system;
-        const { logging } = Configuration.get();
-
-        const logger = new Logger();
-        logger.configure(logging);
-
-        return logger;
-    }
-
     static createTransport(config) {
         const defaults = { level: 'info' };
         switch (config.type) {
@@ -103,6 +93,23 @@ class Logger {
 
     getLogger() {
         return this.log;
+    }
+
+    /**
+     * Static class factory method, used for BottleJS dependency injection
+     * @param  {Bottle} system BottleJS interface object
+     * @return {Logger}
+     *
+     * See {@link https://github.com/young-steveo/bottlejs|BottleJS on GitHub} for more info on BottleJS
+     */
+    static create(system) {
+        const { Configuration } = system;
+        const { logging } = Configuration.get();
+
+        const logger = new Logger();
+        logger.configure(logging);
+
+        return logger;
     }
 }
 

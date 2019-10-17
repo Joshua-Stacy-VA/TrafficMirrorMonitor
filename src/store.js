@@ -168,7 +168,14 @@ class Store extends Map {
         return `${Date.now()}_${id}.json`;
     }
 
-    static createStore(system) {
+    /**
+     * Static class factory method, used for BottleJS dependency injection
+     * @param  {Bottle} system BottleJS interface object
+     * @return {Store}
+     *
+     * See {@link https://github.com/young-steveo/bottlejs|BottleJS on GitHub} for more info on BottleJS
+     */
+    static create(system) {
         const { Configuration, Logger } = system;
         const log = Logger.getLogger();
 

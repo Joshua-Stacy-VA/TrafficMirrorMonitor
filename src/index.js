@@ -11,10 +11,10 @@ const { Store } = require('./store');
 // Set up the system services via dependency injection handler
 const system = new Bottle();
 system.service('Configuration', Configuration);
-system.factory('Logger', Logger.createLogger);
-system.factory('Process', Process.createProcess);
-system.factory('Capture', Capture.createCapture);
-system.factory('Store', Store.createStore);
+system.factory('Logger', Logger.create);
+system.factory('Process', Process.create);
+system.factory('Capture', Capture.create);
+system.factory('Store', Store.create);
 
 // Instantiate the following services immediately here
 system.digest(['Process', 'Capture']);
