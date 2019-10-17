@@ -16,9 +16,6 @@ system.factory('Process', Process.create);
 system.factory('Capture', Capture.create);
 system.factory('Store', Store.create);
 
-// Instantiate the following services immediately here
-system.digest(['Process', 'Capture']);
-
 
 // Display the application and version information
 const {
@@ -30,3 +27,7 @@ const log = LoggerService.getLogger();
 const version = chalk.bold(ConfigurationService.getVersion());
 
 log.info(`Traffic Mirror Monitor, version ${version}`);
+
+
+// Instantiate the following services here to start the application
+system.digest(['Process', 'Capture']);
