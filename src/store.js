@@ -16,6 +16,7 @@ class Session extends EventEmitter {
             client,
             target,
             isClosed: false,
+            sequenceId: 0,
         });
         this.reset();
     }
@@ -28,7 +29,6 @@ class Session extends EventEmitter {
                 control: [],
             },
             count: 0,
-            seqeunceId: 0,
         });
     }
 
@@ -46,7 +46,7 @@ class Session extends EventEmitter {
             sequenceNumber: this.nextSequenceValue(),
         });
 
-        // Check thresholds, if we're beyond then flush the session
+        this.count += 1;
     }
 
     close() {
@@ -58,8 +58,6 @@ class Session extends EventEmitter {
         this.emit('CLOSE');
 
         this.removeAllListeners();
-
-        // TODO: Shutdown timeout listeners
     }
 
     flush() {
@@ -71,15 +69,14 @@ class Session extends EventEmitter {
             id, client, target, payload,
         } = this;
 
-        const data = {
+        this.reset();
+
+        return {
             id,
             client,
             target,
             payload,
         };
-
-        this.emit('DATA', data);
-        this.reset();
     }
 
     nextSeqeunceId() {
@@ -94,40 +91,48 @@ class Store extends Map {
         super();
 
         const {
-            log, threshold = 200, timeout = 6000, ...rest
+            log, timeout = 10000, ...rest
         } = options;
 
         Object.assign(this, {
             log,
-            threshold,
             timeout,
             queue: new PQueue(),
+            checkData: this.checkData.bind(this),
             ...rest,
         });
 
         const { type } = this;
         this.StoreClass = Store.classMap[type];
+
+        this.log.debug(`Store setting flush interval to ${timeout / 1000} seconds`);
+        this.flush = setInterval(() => {
+            this.forEach(this.checkData);
+        }, timeout);
     }
 
-    open(id, options) {
-        const { threshold, timeout } = this;
+    checkData(session) {
+        const data = session.flush();
+        if (!data) {
+            return;
+        }
 
-        const session = new Session(id, { threshold, timeout, ...options });
+        this.queue.add(async () => {
+            const fileName = Store.generateFileName(data);
+            this.log.debug(`Storing data ${fileName}`);
+            await this.write(fileName, data);
+        });
+    }
+
+    open(id, { client, target }) {
+        const session = new Session(id, { client, target });
         this.log.debug(`Opening store session ${id}`);
 
-        session
-            .on('DATA', (data) => {
-                this.queue.add(async () => {
-                    const fileName = Store.generateFileName(data);
-                    this.log.debug(`Store session ${id} writing ${fileName}...`);
-                    await this.write(fileName, data);
-                });
-            })
-            .on('CLOSE', () => {
-                this.log.debug(`Closing store session ${id}`);
-                session.removeAllListeners();
-                this.delete(id);
-            });
+        session.on('CLOSE', () => {
+            this.log.debug(`Closing store session ${id}`);
+            session.removeAllListeners();
+            this.delete(id);
+        });
 
         this.set(id, session);
 
