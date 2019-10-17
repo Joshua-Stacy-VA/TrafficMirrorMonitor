@@ -79,7 +79,7 @@ class Session extends EventEmitter {
         };
     }
 
-    nextSeqeunceId() {
+    nextSequenceId() {
         this.sequenceId += 1;
         return this.sequenceId.toString().padStart(32, '0');
     }
