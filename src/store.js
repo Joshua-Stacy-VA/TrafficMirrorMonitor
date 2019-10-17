@@ -2,6 +2,7 @@
 
 const EventEmitter = require('events');
 const path = require('path');
+const chalk = require('chalk');
 const PQueue = require('p-queue');
 const fs = require('fs-extra');
 const AWS = require('aws-sdk');
@@ -108,7 +109,7 @@ class Store extends Map {
         const { type } = this;
         this.StoreClass = Store.classMap[type];
 
-        this.log.debug(`Store setting flush interval to ${timeout / 1000} seconds`);
+        this.log.debug(`Store saving data every ${chalk.bold(timeout / 1000)} seconds`);
         this.flush = setInterval(() => {
             this.forEach(this.checkData);
         }, timeout);
@@ -120,19 +121,21 @@ class Store extends Map {
             return;
         }
 
+        const { id = 'UNKNOWN' } = session;
+
         this.queue.add(async () => {
             const fileName = Store.generateFileName(data);
-            this.log.debug(`Storing data ${fileName}`);
+            this.log.debug(`[${chalk.bold(id)}] Storing data: ${chalk.bold(fileName)}`);
             await this.write(fileName, data);
         });
     }
 
     open(id, { client, target }) {
         const session = new Session(id, { client, target });
-        this.log.debug(`Opening store session ${id}`);
+        this.log.debug(`[${chalk.bold(id)}] Opening data store`);
 
         session.on('CLOSE', () => {
-            this.log.debug(`Closing store session ${id}`);
+            this.log.debug(`[${chalk.bold(id)}] Closing data store`);
             session.removeAllListeners();
             this.delete(id);
         });
