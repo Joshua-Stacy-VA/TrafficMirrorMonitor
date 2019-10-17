@@ -55,8 +55,11 @@ class Session extends EventEmitter {
         }
 
         this.isClosed = true;
-        this.emit('CLOSE');
 
+        // Save any data that might be resident in the store, then perform clean-up
+        this.flush();
+
+        this.emit('CLOSE');
         this.removeAllListeners();
     }
 
