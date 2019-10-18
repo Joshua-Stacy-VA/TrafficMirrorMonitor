@@ -38,7 +38,7 @@ const createSystemMock = (type, options) => ({
 
 test('LocalStore Creation/initialization/write', async () => {
     const options = { baseDir: TEST_OUTPUT_DIR };
-    const store = Store.createStore(createSystemMock('local', options));
+    const store = Store.create(createSystemMock('local', options));
 
     expect(store.constructor.name).toBe('LocalStore');
     expect(store.baseDir).toBe(TEST_OUTPUT_DIR);
@@ -50,7 +50,7 @@ test('LocalStore Creation/initialization/write', async () => {
 
 test('S3Store Creation/initialization/write', async () => {
     const options = { region: TEST_REGION, bucket: TEST_BUCKET };
-    const store = Store.createStore(createSystemMock('s3', options));
+    const store = Store.create(createSystemMock('s3', options));
 
     expect(store.constructor.name).toBe('S3Store');
     expect(store.region).toBe(TEST_REGION);
@@ -62,12 +62,12 @@ test('S3Store Creation/initialization/write', async () => {
     const { Bucket, Key } = data;
 
     expect(Bucket).toBe(TEST_BUCKET);
-    expect(Key).toMatch(new RegExp(`\\d{13}_${TEST_SESSION_ID}.json`));
+    expect(Key).toMatch(new RegExp(`${TEST_SESSION_ID}_\\d{13}.json`));
 });
 
 test('Rudimentary Store Operations', () => {
     const options = { baseDir: TEST_OUTPUT_DIR };
-    const store = Store.createStore(createSystemMock('local', options));
+    const store = Store.create(createSystemMock('local', options));
 
     store.open(TEST_SESSION_ID, { client: TEST_CLIENT, target: TEST_TARGET });
     expect(store.sessions.size).toBe(1);
