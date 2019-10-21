@@ -15,44 +15,31 @@ class Capture {
         Object.assign(this, {
             log,
             store,
+            port,
             streams: new TCPStreamManager({ log, store }),
             tcpTracker: new pcap.TCPTracker(),
             onPacketCapture: this.onPacketCapture.bind(this),
+            onServerReady: this.onServerReady.bind(this),
+            server: dgram.createSocket('udp4'),
         });
 
-        // Object.assign(this, {
-        //     listener: pcap.createSession(device, filter),
-        // });
-
-        // this.listener.on('packet', this.onPacketCapture);
-        const server = dgram.createSocket('udp4');
-        server
-            .on('listening', () => {
-                const { address } = server.address();
-                this.log.info(`Capture listening on ${chalk.bold(address)}:${chalk.bold(port)}`);
-            })
-            .on('message', (msg) => {
-                console.log(typeof msg, msg.length);
-            })
+        this.server
+            .on('listening', this.onServerReady)
+            .on('message', this.onPacketCapture)
             .bind(port);
     }
 
-
-    // Packets here should contain the following structure:
-    //    Ethernet => IPv4 => UDP => VxLAN => Ethernet => IPv4 => TCP => $$
-    onPacketCapture(rawPacket) {
-        // Decode the raw PCAP packet down to the UDP level of the VxLAN encapsulation, silently failing if
-        const packet = pcap.decode.packet(rawPacket);
-        const udpPacket = Capture.getPayloadRecursive(packet, 3);
-
-        // Silently fail if this not a UDP packet.
-        if (!udpPacket) {
-            return;
-        }
+    onServerReady() {
+        const { server, port } = this;
+        const { address } = server.address();
+        this.log.info(`Capture listening on ${chalk.bold(address)}:${chalk.bold(port)}`);
+    }
 
 
+    // UDP packet data here should contain the following structure:
+    //    UDP => VxLAN => Ethernet => IPv4 => TCP => $$
+    onPacketCapture(data) {
         // Parse the VxLAN header (in the future, we'll verify the VxLAN header flags and VNI value)
-        const { data } = udpPacket;
         let offset = 0;
 
         /* eslint-disable */
@@ -65,9 +52,13 @@ class Capture {
 
 
         // Build a PCAP packet with header to allow us to leverage the PCAP library decoder. We want to get down
-        // to the TCP level to take advantage of the built-in TCP stream tracker
+        // to the TCP level to take advantage of the built-in TCP stream tracker. To do that, we need to coerce the
+        // tracker by tacking on a constructed PCAP packet header.
         const vxlanBuffer = data.slice(8);
-        const vxlanHeader = Buffer.from(rawPacket.header);
+        const vxlanHeader = Buffer.alloc(16);
+        const timestamp = Date.now();
+        vxlanHeader.writeUInt32LE(Math.round(timestamp / 1000), 0);
+        vxlanHeader.writeUInt32LE(Math.round((timestamp % 1000) * 1000), 4);
         vxlanHeader.writeUInt32LE(vxlanBuffer.length, 8);
         vxlanHeader.writeUInt32LE(vxlanBuffer.length, 12);
 
