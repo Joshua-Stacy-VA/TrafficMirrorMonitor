@@ -1,32 +1,40 @@
 'use strict';
 
+const dgram = require('dgram');
 const pcap = require('pcap');
 const chalk = require('chalk');
 const { TCPStreamManager } = require('./stream');
 
-const VXLAN_PCAP_FILTER = 'udp port 4789';
+// const VXLAN_PCAP_FILTER = 'udp port 4789';
 
 // ================================================== Capture Service ==================================================
 class Capture {
     constructor(options) {
-        const {
-            log, device, store, filter = VXLAN_PCAP_FILTER,
-        } = options;
+        const { log, store, port = 4789 } = options;
 
         Object.assign(this, {
             log,
             store,
             streams: new TCPStreamManager({ log, store }),
+            tcpTracker: new pcap.TCPTracker(),
             onPacketCapture: this.onPacketCapture.bind(this),
         });
 
-        this.log.info(`Capture listening on device ${chalk.bold(device)}, filtering packets with "${chalk.bold(filter)}"`);
-        Object.assign(this, {
-            tcpTracker: new pcap.TCPTracker(),
-            listener: pcap.createSession(device, filter),
-        });
+        // Object.assign(this, {
+        //     listener: pcap.createSession(device, filter),
+        // });
 
-        this.listener.on('packet', this.onPacketCapture);
+        // this.listener.on('packet', this.onPacketCapture);
+        const server = dgram.createSocket('udp4');
+        server
+            .on('listening', () => {
+                const { address } = server.address();
+                this.log.info(`Capture listening on ${chalk.bold(address)}:${chalk.bold(port)}`);
+            })
+            .on('message', (msg) => {
+                console.log(typeof msg, msg.length);
+            })
+            .bind(port);
     }
 
 
