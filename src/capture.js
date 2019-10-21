@@ -101,10 +101,10 @@ class Capture {
         const { Configuration, Logger, Store } = system;
         const log = Logger.getLogger();
 
-        const { capture } = Configuration.get();
-        const { device } = capture;
+        const { capture = {} } = Configuration.get();
+        const { port = 4789 } = capture;
 
-        const captureInstance = new Capture({ log, device, store: Store });
+        const captureInstance = new Capture({ log, port, store: Store });
         return captureInstance;
     }
 }

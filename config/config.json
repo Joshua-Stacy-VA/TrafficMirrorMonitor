@@ -1,6 +1,6 @@
 {
     "capture": {
-        "device": "eth0"
+        "port": 4789
     },
     "store": {
         "type": "local",
