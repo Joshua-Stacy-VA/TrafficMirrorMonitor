@@ -30,16 +30,16 @@ class Capture {
     }
 
     onServerReady() {
-        const { server, port } = this;
-        const { address } = server.address();
-        this.log.info(`Capture listening on ${chalk.bold(address)}:${chalk.bold(port)}`);
+        const { port } = this;
+        this.log.info(`Capture listening for UDP packets on ${chalk.bold(port)}`);
     }
 
 
     // UDP packet data here should contain the following structure:
     //    UDP => VxLAN => Ethernet => IPv4 => TCP => $$
     onPacketCapture(data) {
-        // Parse the VxLAN header (in the future, we'll verify the VxLAN header flags and VNI value)
+        // Parse the VxLAN header out of the UDP packet paylod.
+        // (Note: In the future, we'll verify the VxLAN header flags and VNI value)
         let offset = 0;
 
         /* eslint-disable */
@@ -53,7 +53,8 @@ class Capture {
 
         // Build a PCAP packet with header to allow us to leverage the PCAP library decoder. We want to get down
         // to the TCP level to take advantage of the built-in TCP stream tracker. To do that, we need to coerce the
-        // tracker by tacking on a constructed PCAP packet header.
+        // tracker to handle the data parsed out of the VxLAN packet by constructing a PCAP header to pass along
+        // with the data.
         const vxlanBuffer = data.slice(8);
         const vxlanHeader = Buffer.alloc(16);
         const timestamp = Date.now();
