@@ -186,6 +186,10 @@ class Store extends Map {
         const { type, options } = store;
         const StoreClass = Store.classMap[type];
 
+        if (!StoreClass) {
+            throw new Error(`Storage type ${type} not supported! Check the configuration file`);
+        }
+
         const storeInstance = new StoreClass({ log, ...options });
         return storeInstance;
     }
