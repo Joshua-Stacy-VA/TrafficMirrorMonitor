@@ -1,0 +1,16 @@
+{
+    "capture": {
+        "port": 4789
+    },
+    "store": {
+        "type": "s3",
+        "options": {
+            "region": "{{AWS_REGION}}",
+            "bucket": "traffic-mirror-{{PROJECT_NAME}}"
+        }
+    },
+    "logging": [{
+        "type": "console",
+        "level": "info"
+    }]
+}
