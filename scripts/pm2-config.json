@@ -3,7 +3,6 @@
         "name": "traffic-mirror",
         "script": "src/index.js",
         "args": "--config config/config.json",
-        "instances": "max",
         "autorestart": true,
         "watch": false
     }]
