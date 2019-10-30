@@ -17,7 +17,7 @@ pm2 install pm2-logrotate
 echo '---------------------------------------- Install the RPC Mirror software -----------------------------------------'
 git config --global http.sslVerify false
 git clone https://github.com/vistadataproject/TrafficMirrorMonitor
-cd RPCMirror
+cd TrafficMirrorMonitor
 npm install
 npm run build
 
