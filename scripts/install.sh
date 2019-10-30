@@ -28,9 +28,10 @@ npm run build
 ## This next line is specific to this particular deployment configuration
 curl -sLk https://raw.githubusercontent.com/vistadataproject/TrafficMirrorMonitor/master/scripts/config.json -o dist/config/config.json
 curl -sLk https://raw.githubusercontent.com/vistadataproject/TrafficMirrorMonitor/master/scripts/pm2-config.json -o dist/pm2-config.json
-
+mv dist /usr/local/traffic-mirror
 
 echo '------------------------------------------- Setup the software service -------------------------------------------'
+
 cd /usr/local/traffic-mirror
 npm install
 chown -R ec2-user:ec2-user .
