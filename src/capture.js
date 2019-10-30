@@ -1,31 +1,44 @@
 'use strict';
 
 const dgram = require('dgram');
+const net = require('net');
 const pcap = require('pcap');
 const chalk = require('chalk');
 const { TCPStreamManager } = require('./stream');
 
-// const VXLAN_PCAP_FILTER = 'udp port 4789';
-
 // ================================================== Capture Service ==================================================
 class Capture {
     constructor(options) {
-        const { log, store, port = 4789 } = options;
+        const {
+            log,
+            store,
+            port = 4789,
+            healthCheckPort = 14789,
+        } = options;
 
         Object.assign(this, {
             log,
             store,
             port,
+            healthCheckPort,
             streams: new TCPStreamManager({ log, store }),
             tcpTracker: new pcap.TCPTracker(),
             onPacketCapture: this.onPacketCapture.bind(this),
             onServerReady: this.onServerReady.bind(this),
+            onServerShutdown: this.onServerShutdown.bind(this),
             server: dgram.createSocket('udp4'),
+            healthCheckServer: net.createServer(),
+        });
+
+        this.healthCheckServer.listen(healthCheckPort, () => {
+            this.log.info(`Health check listening on TCP port ${chalk.bold(healthCheckPort)}`);
         });
 
         this.server
             .on('listening', this.onServerReady)
             .on('message', this.onPacketCapture)
+            .on('error', this.onServerShutdown)
+            .on('close', this.onServerShutdown)
             .bind(port);
     }
 
@@ -34,6 +47,12 @@ class Capture {
         this.log.info(`Capture listening for UDP packets on ${chalk.bold(port)}`);
     }
 
+    // If the UDP server socket closes or throws an error, we shut down the health check server to trigger any
+    // watchers that this instance is in trouble.
+    onServerShutdown() {
+        this.log.info(`UDP server socket shutting down, closing health check TCP port ${chalk.bold(this.healthCheckPort)}`);
+        this.healthCheckServer.close();
+    }
 
     // UDP packet data here should contain the following structure:
     //    UDP => VxLAN => Ethernet => IPv4 => TCP => $$
