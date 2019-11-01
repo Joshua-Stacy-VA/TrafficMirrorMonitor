@@ -94,12 +94,14 @@ class Capture {
         }
 
         const { payload: tcp, saddr, daddr } = ip;
-        const { sport, dport } = tcp;
+        const { sport, dport, flags: tcpFlags } = tcp;
         const src = `${saddr}:${sport}`;
         const dst = `${daddr}:${dport}`;
 
-        const stream = this.streams.getStream(src, dst);
-        stream.track(vxlanPacket);
+        const stream = this.streams.getStream(src, dst, tcpFlags);
+        if (stream) {
+            stream.track(vxlanPacket);
+        }
     }
 
     static getPayloadRecursive(packet = {}, levels = 0) {

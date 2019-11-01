@@ -60,14 +60,31 @@ class TCPStreamManager extends Map {
         Object.assign(this, { log, store, delay });
     }
 
-    getStream(src, dst) {
+    getStream(src, dst, flags) {
         const key = TCPStreamManager.createKey(src, dst);
         if (!this.has(key)) {
-            const stream = this.createStream(src, dst, key);
-            this.set(key, stream);
+            // Just in case we miss the initial SYN packet, we make sure we have the sources right
+            const { client, target } = TCPStreamManager.getSources(src, dst, flags);
+            if (client && target) {
+                const stream = this.createStream(client, target, key);
+                this.set(key, stream);
+            }
         }
 
         return this.get(key);
+    }
+
+    // This method assumes that we'll either catch the SYN or the SYN-ACK of the TCP handshake. If
+    // not, then there's no way to know who's the client and who's the target, in which case we punt.
+    static getSources(src, dst, flags = {}) {
+        const { syn = false, ack = false } = flags;
+        if (!syn) {
+            return {};
+        }
+        return {
+            client: ack ? dst : src,
+            target: ack ? src : dst,
+        };
     }
 
     createStream(src, dst, key) {
