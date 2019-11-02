@@ -26,6 +26,9 @@ class TCPStream extends EventEmitter {
             .on('data recv', (_, data) => {
                 this.emit('TARGET', data);
             })
+            .on('syn retry', () => {
+                this.emit('SYN_RETRY');
+            })
             .on('end', () => {
                 this.close();
             });
@@ -62,29 +65,26 @@ class TCPStreamManager extends Map {
 
     getStream(src, dst, flags) {
         const key = TCPStreamManager.createKey(src, dst);
-        if (!this.has(key)) {
-            // Just in case we miss the initial SYN packet, we make sure we have the sources right
-            const { client, target } = TCPStreamManager.getSources(src, dst, flags);
-            if (client && target) {
-                const stream = this.createStream(client, target, key);
-                this.set(key, stream);
-            }
+        if (this.has(key)) {
+            return this.get(key);
         }
 
-        return this.get(key);
-    }
-
-    // This method assumes that we'll either catch the SYN or the SYN-ACK of the TCP handshake. If
-    // not, then there's no way to know who's the client and who's the target, in which case we punt.
-    static getSources(src, dst, flags = {}) {
+        // If we're here, we're creating a new TCP stream. We make sure that we're actually creating
+        // the stream properly with the correct source and destination fields
         const { syn = false, ack = false } = flags;
         if (!syn) {
-            return {};
+            return null;
         }
-        return {
-            client: ack ? dst : src,
-            target: ack ? src : dst,
-        };
+
+        // We make sure that we have the client and target straight, based on the TCP connect handshake flags.
+        const client = ack ? dst : src;
+        const target = ack ? src : dst;
+
+        // Create the stream, then adjust the strea
+        const stream = this.createStream(client, target, key);
+
+        this.set(key, stream);
+        return stream;
     }
 
     createStream(src, dst, key) {
@@ -110,6 +110,9 @@ class TCPStreamManager extends Map {
             .on('TARGET', (data) => {
                 log.debug(`[${streamId}] TARGET (${fromTarget}) ${chalk.green(data.length)} bytes`);
                 store.targetData(id, data);
+            })
+            .on('SYN_RETRY', () => {
+                console.log('SYN RETRY!!!');
             })
             .on('CLOSE', () => {
                 store.close(id);
