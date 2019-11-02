@@ -48,6 +48,15 @@ class TCPStream extends EventEmitter {
         Object.assign(this, { stream: null });
     }
 
+    adjust(src, dst) {
+        Object.assign(this.stream, {
+            src,
+            dst,
+            src_name: src,
+            dst_name: dst,
+        });
+    }
+
     track(packet) {
         if (this.isClosed || !this.stream) {
             return;
@@ -113,12 +122,7 @@ class TCPStreamManager extends Map {
             })
             .on('SYN_RETRY', () => {
                 log.verbose(`[${streamId}] received a SYN RETRY event; adjusting stream object...`);
-                Object.assign(stream, {
-                    src,
-                    dst,
-                    src_name: src,
-                    dst_name: dst,
-                });
+                stream.adjust(src, dst);
             })
             .on('CLOSE', () => {
                 store.close(id);
