@@ -97,7 +97,7 @@ class TCPStreamManager extends Map {
     }
 
     createStream(src, dst, key) {
-        const { store, log, delay } = this;
+        const { store, log } = this;
 
         const id = uuid();
 
@@ -127,9 +127,7 @@ class TCPStreamManager extends Map {
             .on('CLOSE', () => {
                 store.close(id);
                 log.info(`[${streamId}] TCP stream ${chalk.yellow('CLOSED')} (${fromClient})`);
-
-                // Delay the actual removal of the stream, since we may receive the dying ember packets of this stream
-                setTimeout(() => this.deleteStream(key), delay);
+                this.deleteStream(key);
             });
 
         return stream;
