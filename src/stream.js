@@ -112,7 +112,13 @@ class TCPStreamManager extends Map {
                 store.targetData(id, data);
             })
             .on('SYN_RETRY', () => {
-                console.log('SYN RETRY!!!');
+                log.verbose(`[${streamId}] received a SYN RETRY event; adjusting stream object...`);
+                Object.assign(stream, {
+                    src,
+                    dst,
+                    src_name: src,
+                    dst_name: dst,
+                });
             })
             .on('CLOSE', () => {
                 store.close(id);
