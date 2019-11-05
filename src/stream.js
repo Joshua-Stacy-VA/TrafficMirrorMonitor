@@ -42,12 +42,12 @@ class TCPStream extends EventEmitter {
                 this.store.targetData(id, data);
             })
             .on('reset', () => {
-                this.close();
                 this.log.info(`[${streamId}] TCP stream ${chalk.red('RESET')} (${fromClient})`);
+                this.close();
             })
             .on('end', () => {
-                this.close();
                 this.log.info(`[${streamId}] TCP stream ${chalk.yellow('CLOSED')} (${fromClient})`);
+                this.close();
             });
 
         this.isConnected = true;
