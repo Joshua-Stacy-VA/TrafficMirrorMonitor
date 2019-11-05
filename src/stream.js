@@ -37,7 +37,7 @@ class TCPStream extends EventEmitter {
                 this.log.debug(`[${streamId}] CLIENT (${fromClient}) ${chalk.green(data.length)} bytes`);
                 this.store.clientData(id, data);
             })
-            .on('data recv', (data) => {
+            .on('data recv', (_, data) => {
                 this.log.debug(`[${streamId}] TARGET (${fromTarget}) ${chalk.green(data.length)} bytes`);
                 this.store.targetData(id, data);
             })
