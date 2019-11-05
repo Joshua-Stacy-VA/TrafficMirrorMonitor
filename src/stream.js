@@ -7,7 +7,7 @@ const chalk = require('chalk');
 
 // ==================================================== TCP Stream =====================================================
 class TCPStream extends EventEmitter {
-    constructor(streamId) {
+    constructor(streamId, { log, store }) {
         super();
         const [shortId] = streamId.split('-');
         const stream = new pcap.TCPSession();
@@ -16,22 +16,41 @@ class TCPStream extends EventEmitter {
             id: streamId,
             shortId,
             stream,
+            log,
+            store,
             isClosed: false,
+            isConnected: false,
+            queue: [],
         });
+    }
 
-        stream
+    connect(src, dst) {
+        const { shortId, id } = this;
+        const streamId = chalk.bold(shortId);
+        const fromClient = chalk.bold(`${src} => ${dst}`);
+        const fromTarget = chalk.bold(`${dst} => ${src}`);
+
+        this.log.info(`[${streamId}] TCP Stream ${chalk.green('OPENED')} (${fromClient})`);
+        this.store.open(id, { client: src, target: dst });
+        this.stream
             .on('data send', (_, data) => {
-                this.emit('CLIENT', data);
+                this.log.debug(`[${streamId}] CLIENT (${fromClient}) ${chalk.green(data.length)} bytes`);
+                this.store.clientData(id, data);
             })
-            .on('data recv', (_, data) => {
-                this.emit('TARGET', data);
+            .on('data recv', (data) => {
+                this.log.debug(`[${streamId}] TARGET (${fromTarget}) ${chalk.green(data.length)} bytes`);
+                this.store.targetData(id, data);
             })
-            .on('syn retry', () => {
-                this.emit('SYN_RETRY');
+            .on('reset', () => {
+                this.close();
+                this.log.info(`[${streamId}] TCP stream ${chalk.red('RESET')} (${fromClient})`);
             })
             .on('end', () => {
                 this.close();
+                this.log.info(`[${streamId}] TCP stream ${chalk.yellow('CLOSED')} (${fromClient})`);
             });
+
+        this.isConnected = true;
     }
 
     close() {
@@ -39,21 +58,19 @@ class TCPStream extends EventEmitter {
             return;
         }
 
+        this.isConnected = false;
         this.isClosed = true;
         this.emit('CLOSE');
 
         this.removeAllListeners();
         this.stream.removeAllListeners();
+        this.store.close(this.id);
 
-        Object.assign(this, { stream: null });
-    }
-
-    adjust(src, dst) {
-        Object.assign(this.stream, {
-            src,
-            dst,
-            src_name: src,
-            dst_name: dst,
+        Object.assign(this, {
+            stream: null,
+            log: null,
+            store: null,
+            queue: null,
         });
     }
 
@@ -61,7 +78,39 @@ class TCPStream extends EventEmitter {
         if (this.isClosed || !this.stream) {
             return;
         }
-        this.stream.track(packet);
+
+        if (this.isConnected) {
+            return this.stream.track(packet);
+        }
+
+        // If we're not connected yet, we make sure that the packets are in the right order to facilitate a
+        // proper TCP 3-way handshake (at least the first 2 parts of the 3-way)
+        const { payload: ip } = packet.payload;
+        const { payload: tcp } = ip;
+        const { flags } = tcp;
+        const { syn = false, ack = false } = flags;
+
+        // Only create the TCP stream tracker (and initialize the stream object) when we get the very first
+        // TCP SYN packet. Otherwise, if we receive the packets out of order, we save them. We'll eventually
+        // get the TCP SYN packet, since we wouldn't have gotten the mirrored packet in the first place, so
+        // this method is relatively safe, resource-wise. Once we get the SYN packet, we flush the queue and
+        // assume that everything is okay in a 1, 2, 3-way...
+        if (syn && !ack) {
+            const { saddr, daddr } = ip;
+            const { sport, dport } = tcp;
+            const src = `${saddr}:${sport}`;
+            const dst = `${daddr}:${dport}`;
+
+            this.connect(src, dst);
+            this.track(packet);
+
+            while (this.queue.length > 0) {
+                const nextPacket = this.queue.shift();
+                this.track(nextPacket);
+            }
+        } else {
+            this.queue.push(packet);
+        }
     }
 }
 
@@ -72,65 +121,33 @@ class TCPStreamManager extends Map {
         Object.assign(this, { log, store, delay });
     }
 
-    getStream(src, dst, flags) {
+    getStream(src, dst, flags = {}) {
         const key = TCPStreamManager.createKey(src, dst);
         if (this.has(key)) {
             return this.get(key);
         }
 
-        // If we're here, we're creating a new TCP stream. We make sure that we're actually creating
-        // the stream properly with the correct source and destination fields
-        const { syn = false, ack = false } = flags;
+        // We only want to create a stream if the 'SYN' flag is true
+        const { syn = false } = flags;
         if (!syn) {
             return null;
         }
 
-        // We make sure that we have the client and target straight, based on the TCP connect handshake flags.
-        const client = ack ? dst : src;
-        const target = ack ? src : dst;
-
-        // Create the stream, then adjust the strea
-        const stream = this.createStream(client, target, key);
+        // Create the stream with a hook in for the 'CLOSE' event to clean up the resources
+        const stream = this.createStream();
+        stream.on('CLOSE', () => {
+            this.deleteStream(key);
+        });
 
         this.set(key, stream);
         return stream;
     }
 
-    createStream(src, dst, key) {
+    createStream() {
         const { store, log } = this;
-
         const id = uuid();
 
-        const stream = new TCPStream(id);
-
-        const { shortId } = stream;
-        const streamId = chalk.bold(shortId);
-        const fromClient = chalk.bold(`${src} => ${dst}`);
-        const fromTarget = chalk.bold(`${dst} => ${src}`);
-
-        log.info(`[${streamId}] TCP Stream ${chalk.green('OPENED')} (${fromClient})`);
-        store.open(id, { client: src, target: dst });
-
-        stream
-            .on('CLIENT', (data) => {
-                log.debug(`[${streamId}] CLIENT (${fromClient}) ${chalk.green(data.length)} bytes`);
-                store.clientData(id, data);
-            })
-            .on('TARGET', (data) => {
-                log.debug(`[${streamId}] TARGET (${fromTarget}) ${chalk.green(data.length)} bytes`);
-                store.targetData(id, data);
-            })
-            .on('SYN_RETRY', () => {
-                log.verbose(`[${streamId}] received a SYN RETRY event; adjusting stream object...`);
-                stream.adjust(src, dst);
-            })
-            .on('CLOSE', () => {
-                store.close(id);
-                log.info(`[${streamId}] TCP stream ${chalk.yellow('CLOSED')} (${fromClient})`);
-                this.deleteStream(key);
-            });
-
-        return stream;
+        return new TCPStream(id, { store, log });
     }
 
     deleteStream(key) {
