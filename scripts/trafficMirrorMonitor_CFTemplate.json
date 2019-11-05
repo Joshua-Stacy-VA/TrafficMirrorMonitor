@@ -1,0 +1,498 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "AWS Resources for VAM on the VISTA side",
+    "Parameters": {
+        "SystemName": {
+            "Description": "Name of the VISTA System within the context of VAM",
+            "Type": "String",
+            "Default": "sample",
+            "ConstraintDescription": "[a-z0-9]+"
+        },
+        "Environment": {
+            "Description": "Deployment Environment Type",
+            "Type": "String",
+            "Default": "test",
+            "AllowedValues": [
+                "prod",
+                "poc",
+                "test"
+            ]
+        },
+        "VpcId": {
+            "Type": "AWS::EC2::VPC::Id",
+            "Description": "Virtual Private Cloud (VPC) ID of the target VISTA instance",
+            "ConstraintDescription": "must be the VPC ID of the target VISTA instance."
+        },
+        "Subnet": {
+            "Type": "AWS::EC2::Subnet::Id",
+            "Description": "The Subnet IDs of the front-end VISTA instance",
+            "ConstraintDescription": "must be the subnet associated with the ENI of the VISTA instance broker port."
+        },
+        "NetworkInterface": {
+            "Description": "Elastic network interface of the target VISTA system",
+            "Type": "String",
+            "ConstraintDescription": "must be associated with the VPC ID specified above"
+        },
+        "KeyName": {
+            "Description": "Name of an existing EC2 Key Pair to enable SSH access to the instances",
+            "Type": "AWS::EC2::KeyPair::KeyName",
+            "ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+        },
+        "InstanceProfile": {
+            "Description": "Instance profile ARN to use for the EC2 role applied to the Auto-Scaling launch configuration. Get this from the IAM role summary page",
+            "Type": "String",
+            "Default": "arn:aws-us-gov:iam::819537423316:instance-profile/project/project-development-vam-developer-role"
+        }
+    },
+    "Metadata": {
+        "AWS::CloudFormation::Interface": {
+            "ParameterGroups": [
+                {
+                    "Label": {
+                        "default": "VAM Environment Configuration"
+                    },
+                    "Parameters": [
+                        "SystemName",
+                        "Environment"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "AWS Service/VPC Configuration"
+                    },
+                    "Parameters": [
+                        "VpcId",
+                        "Subnet",
+                        "NetworkInterface",
+                        "KeyName",
+                        "InstanceProfile"
+                    ]
+                }
+            ],
+            "ParameterLabels": {
+                "SystemName": {
+                    "default": "VAM System Name"
+                },
+                "VpcId": {
+                    "default": "VISTA VPC"
+                },
+                "Subnet": {
+                    "default": "VISTA Subnet"
+                },
+                "NetworkInterface": {
+                    "default": "VISTA Elastic Network Interface ID"
+                },
+                "KeyName": {
+                    "default": "EC2 Key-Pair"
+                },
+                "InstanceProfile": {
+                    "default": "IAM Instance Profile ARN"
+                }
+            }
+        }
+    },
+    "Resources": {
+        "InstanceSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupName": {
+                    "Fn::Sub": [
+                        "TrafficMirror-SG-${SystemName}-${Environment}",
+                        {
+                            "SystemName": {
+                                "Ref": "SystemName"
+                            },
+                            "Environment": {
+                                "Ref": "Environment"
+                            }
+                        }
+                    ]
+                },
+                "GroupDescription": "Allow access to the Traffic Mirror UDP and TCP Ports",
+                "VpcId": {
+                    "Ref": "VpcId"
+                },
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "udp",
+                        "FromPort": 4789,
+                        "ToPort": 4789,
+                        "CidrIp": "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": 14789,
+                        "ToPort": 14789,
+                        "CidrIp": "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": 22,
+                        "ToPort": 22,
+                        "CidrIp": "0.0.0.0/0"
+                    }
+                ],
+                "SecurityGroupEgress": [
+                    {
+                        "IpProtocol": "-1",
+                        "CidrIp": "0.0.0.0/0"
+                    }
+                ]
+            }
+        },
+        "S3Bucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+                "AccessControl": "Private",
+                "BucketName": {
+                    "Fn::Sub": [
+                        "traffic-mirror-${SystemName}-${Environment}",
+                        {
+                            "SystemName": {
+                                "Ref": "SystemName"
+                            },
+                            "Environment": {
+                                "Ref": "Environment"
+                            }
+                        }
+                    ]
+                },
+                "BucketEncryption": {
+                    "ServerSideEncryptionConfiguration": [
+                        {
+                            "ServerSideEncryptionByDefault": {
+                                "SSEAlgorithm": "AES256"
+                            }
+                        }
+                    ]
+                },
+                "LifecycleConfiguration": {
+                    "Rules": [
+                        {
+                            "Id": "DeleteOldRule",
+                            "Status": "Enabled",
+                            "ExpirationInDays": "7"
+                        }
+                    ]
+                }
+            }
+        },
+        "NLB": {
+            "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+            "Properties": {
+                "Name": {
+                    "Fn::Sub": [
+                        "TrafficMirrorNLB-${SystemName}-${Environment}",
+                        {
+                            "SystemName": {
+                                "Ref": "SystemName"
+                            },
+                            "Environment": {
+                                "Ref": "Environment"
+                            }
+                        }
+                    ]
+                },
+                "Scheme": "internal",
+                "Subnets": [{
+                    "Ref": "Subnet"
+                }],
+                "Type": "network"
+            }
+        },
+        "NLBTargetGroup": {
+            "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+            "Properties": {
+                "Name": {
+                    "Fn::Sub": [
+                        "TrafficMirrorTG-${SystemName}-${Environment}",
+                        {
+                            "SystemName": {
+                                "Ref": "SystemName"
+                            },
+                            "Environment": {
+                                "Ref": "Environment"
+                            }
+                        }
+                    ]
+                },
+                "TargetType": "instance",
+                "Protocol": "UDP",
+                "Port": "4789",
+                "VpcId": {
+                    "Ref": "VpcId"
+                },
+                "HealthCheckEnabled": true,
+                "HealthCheckProtocol": "TCP",
+                "HealthCheckPort": "14789"
+            }
+        },
+        "NLBListener": {
+            "Type": "AWS::ElasticLoadBalancingV2::Listener",
+            "Properties": {
+                "DefaultActions": [
+                    {
+                        "Type": "forward",
+                        "TargetGroupArn": {
+                            "Ref": "NLBTargetGroup"
+                        }
+                    }
+                ],
+                "LoadBalancerArn": {
+                    "Ref": "NLB"
+                },
+                "Port": "4789",
+                "Protocol": "UDP"
+            }
+        },
+        "LaunchConfiguration": {
+            "Type": "AWS::AutoScaling::LaunchConfiguration",
+            "Properties": {
+                "LaunchConfigurationName": {
+                    "Fn::Sub": [
+                        "TrafficMirrorLC-${SystemName}-${Environment}",
+                        {
+                            "SystemName": {
+                                "Ref": "SystemName"
+                            },
+                            "Environment": {
+                                "Ref": "Environment"
+                            }
+                        }
+                    ]
+                },
+                "ImageId": "ami-6cfab40d",
+                "InstanceType": "t3.medium",
+                "IamInstanceProfile": {
+                    "Ref": "InstanceProfile"
+                },
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/xvda",
+                        "Ebs": {
+                            "Encrypted": true,
+                            "VolumeSize": "16"
+                        }
+                    }
+                ],
+                "SecurityGroups": [
+                    { "Ref": "InstanceSecurityGroup" }
+                ],
+                "KeyName": { "Ref": "KeyName" },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash\n",
+                                "curl -sLk https://raw.githubusercontent.com/vistadataproject/TrafficMirrorMonitor/master/scripts/install.sh | sudo -E bash -\n",
+                                {
+                                    "Fn::Sub": [
+                                        "sed -i -e 's/{{PROJECT_NAME}}/${SystemName}-${Environment}/g' -e 's/{{AWS_REGION}}/${Region}/g' /usr/local/traffic-mirror/config/config.json\n",
+                                        {
+                                            "SystemName": {
+                                                "Ref": "SystemName"
+                                            },
+                                            "Environment": {
+                                                "Ref": "Environment"
+                                            },
+                                            "Region": {
+                                                "Ref": "AWS::Region"
+                                            }
+                                        }
+                                    ]
+                                },
+                                "runuser -l ec2-user -c 'cd /usr/local/traffic-mirror && pm2 start pm2-config.json'\n",
+                                "runuser -l ec2-user -c 'pm2 save'\n",
+                                "env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemv -u ec2-user --hp /home/ec2-user\n"
+                            ]
+                        ]
+                    }
+                }
+            }
+        },
+        "AutoScalingGroup": {
+            "Type": "AWS::AutoScaling::AutoScalingGroup",
+            "Properties": {
+                "AutoScalingGroupName": {
+                    "Fn::Sub": [
+                        "TrafficMirrorASG-${SystemName}-${Environment}",
+                        {
+                            "SystemName": {
+                                "Ref": "SystemName"
+                            },
+                            "Environment": {
+                                "Ref": "Environment"
+                            }
+                        }
+                    ]
+                },
+                "VPCZoneIdentifier": [{
+                    "Ref": "Subnet"
+                }],
+                "LaunchConfigurationName": {
+                    "Ref": "LaunchConfiguration"
+                },
+                "MinSize": "1",
+                "MaxSize": "1",
+                "TargetGroupARNs": [
+                    {
+                        "Ref": "NLBTargetGroup"
+                    }
+                ],
+                "HealthCheckType": "EC2",
+                "HealthCheckGracePeriod": "60",
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": {
+                        "Fn::Sub": [
+                            "Traffic Mirror Monitor-${SystemName}-${Environment}",
+                            {
+                                "SystemName": {
+                                    "Ref": "SystemName"
+                                },
+                                "Environment": {
+                                    "Ref": "Environment"
+                                }
+                            }
+                        ]
+                    },
+                    "PropagateAtLaunch": true
+                }, {
+                    "Key": "ProjectName",
+                    "Value": "VistA Adaptive Maintenance",
+                    "PropagateAtLaunch": true
+                }]
+            },
+            "DependsOn": [
+                "LaunchConfiguration",
+                "NLBTargetGroup",
+                "NLBListener",
+                "NLB"
+            ]
+        },
+        "TrafficMirrorFilter": {
+            "Type": "AWS::EC2::TrafficMirrorFilter",
+            "Properties": {
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": {
+                        "Fn::Sub": [
+                            "project-VAM-TMFilter-${SystemName}-${Environment}",
+                            {
+                                "SystemName": {
+                                    "Ref": "SystemName"
+                                },
+                                "Environment": {
+                                    "Ref": "Environment"
+                                }
+                            }
+                        ]
+                    }
+                }]
+            }
+        },
+        "TrafficMirrorInboundTrafficRule": {
+            "Type": "AWS::EC2::TrafficMirrorFilterRule",
+            "Properties": {
+                "TrafficMirrorFilterId": { "Ref": "TrafficMirrorFilter" },
+                "TrafficDirection": "ingress",
+                "RuleAction": "accept",
+                "Protocol": 6,
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "SourceCidrBlock": "0.0.0.0/0",
+                "DestinationPortRange": {
+                    "FromPort": 443,
+                    "ToPort": 443
+                },
+                "RuleNumber": 100
+            },
+            "DependsOn": [ "TrafficMirrorFilter" ]
+        },
+        "TrafficMirrorOutboundTrafficRule": {
+            "Type": "AWS::EC2::TrafficMirrorFilterRule",
+            "Properties": {
+                "TrafficMirrorFilterId": { "Ref": "TrafficMirrorFilter" },
+                "TrafficDirection": "egress",
+                "RuleAction": "accept",
+                "Protocol": 6,
+                "DestinationCidrBlock": "00.0.0.0/0",
+                "SourceCidrBlock": "0.0.0.0/0",
+                "SourcePortRange": {
+                    "FromPort": 443,
+                    "ToPort": 443
+                },
+                "RuleNumber": 100
+            },
+            "DependsOn": [ "TrafficMirrorFilter" ]
+        },
+        "TrafficMirrorTarget": {
+            "Type": "AWS::EC2::TrafficMirrorTarget",
+            "Properties": {
+                "NetworkLoadBalancerArn": { "Ref": "NLB" },
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": {
+                        "Fn::Sub": [
+                            "project-VAM-TMTarget-${SystemName}-${Environment}",
+                            {
+                                "SystemName": {
+                                    "Ref": "SystemName"
+                                },
+                                "Environment": {
+                                    "Ref": "Environment"
+                                }
+                            }
+                        ]
+                    }
+                }]
+            }
+        },
+        "TrafficMirrorSession": {
+            "Type" : "AWS::EC2::TrafficMirrorSession",
+            "Properties" : {
+                "NetworkInterfaceId": { "Ref": "NetworkInterface" },
+                "SessionNumber": 1,
+                "TrafficMirrorTargetId": { "Ref": "TrafficMirrorTarget" },
+                "TrafficMirrorFilterId": { "Ref": "TrafficMirrorFilter" },
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": {
+                        "Fn::Sub": [
+                            "project-VAM-TMSession-${SystemName}-${Environment}",
+                            {
+                                "SystemName": {
+                                    "Ref": "SystemName"
+                                },
+                                "Environment": {
+                                    "Ref": "Environment"
+                                }
+                            }
+                        ]
+                    }
+                }]
+            },
+            "DependsOn": [
+                "TrafficMirrorFilter",
+                "TrafficMirrorInboundTrafficRule",
+                "TrafficMirrorOutboundTrafficRule",
+                "TrafficMirrorTarget"
+            ]
+        }
+    },
+    "Outputs": {
+        "S3URL": {
+            "Description": "URL of the S3 Bucket target of the Traffic Mirror in the AWS Console",
+            "Value": {
+                "Fn::Join": [
+                    "",
+                    [
+                        "https://console.amazonaws-us-gov.com/s3/buckets/",
+                        { "Ref": "S3Bucket" },
+                        "/?tab=overview"
+                    ]
+                ]
+            }
+        }
+    }
+}
