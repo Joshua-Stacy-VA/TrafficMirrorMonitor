@@ -79,18 +79,14 @@ class TCPStream extends EventEmitter {
             return;
         }
 
-        if (this.isConnected) {
-            return this.stream.track(packet);
-        }
-
-        // If we're not connected yet, we make sure that the packets are in the right order to facilitate a
-        // proper TCP 3-way handshake (at least the first 2 parts of the 3-way)
         const { payload: ip } = packet.payload;
         const { payload: tcp } = ip;
         const { flags } = tcp;
-        const { syn = false, ack = false, fin = false } = flags;
+        const { fin = false } = flags;
 
-        // We intercept the intent to close the TCP socket by watching the "FIN" flag.
+        // Before anything, We intercept the intent to close the TCP socket by watching the "FIN" flag. Once we
+        // see the FIN, we close the stream and clean up all the resources. We also note *who* closed the socket
+        // for record-keeping purposes
         if (fin) {
             const { saddr } = ip;
             const { sport } = tcp;
@@ -101,10 +97,17 @@ class TCPStream extends EventEmitter {
 
             const closeEventSource = (src === streamSrc) ? 'CLIENT' : 'TARGET';
             console.log(`Stream closed by ${closeEventSource}`);
-            this.close(closeEventSource);
 
-            return;
+            return this.close(closeEventSource);
         }
+
+        if (this.isConnected) {
+            return this.stream.track(packet);
+        }
+
+        // If we're not connected yet, we make sure that the packets are in the right order to facilitate a
+        // proper TCP 3-way handshake (at least the first 2 parts of the 3-way)
+        const { syn = false, ack = false } = flags;
 
         // Only create the TCP stream tracker (and initialize the stream object) when we get the very first
         // TCP SYN packet. Otherwise, if we receive the packets out of order, we save them. We'll eventually
