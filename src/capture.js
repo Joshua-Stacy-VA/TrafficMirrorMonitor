@@ -110,10 +110,10 @@ class Capture {
 
         const stream = this.streams.getStream(src, dst, tcpFlags);
         if (stream) {
-            console.log(`=> ${stream.state} ${saddr}`);
+            console.log(`=> ${stream.stream.state} ${saddr}`);
             stream.track(vxlanPacket);
             Capture.displayTCPFlags(tcpFlags);
-            console.log(`<= ${stream.state} ${saddr}`);
+            console.log(`<= ${stream.stream.state} ${saddr}`);
         }
     }
 
