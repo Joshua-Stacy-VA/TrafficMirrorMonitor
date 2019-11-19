@@ -97,7 +97,7 @@ class TCPStream extends EventEmitter {
             const { streamSrc = '' } = stream;
 
             const closeEventSource = (src === streamSrc) ? 'CLIENT' : 'TARGET';
-            console.log(`Stream closed by ${closeEventSource}`);
+            console.log(`Stream closed by ${closeEventSource} (src=${src}, streamSrc=${streamSrc})`);
 
             return this.close(closeEventSource);
         }
