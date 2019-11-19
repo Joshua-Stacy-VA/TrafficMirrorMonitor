@@ -87,7 +87,6 @@ class TCPStream extends EventEmitter {
         // Before anything, We intercept the intent to close the TCP socket by watching the "FIN" flag. Once we
         // see the FIN, we close the stream and clean up all the resources. We also note *who* closed the socket
         // for record-keeping purposes
-        console.log(`Stream::track FIN: ${fin}`);
         if (fin) {
             const { saddr } = ip;
             const { sport } = tcp;
@@ -97,8 +96,6 @@ class TCPStream extends EventEmitter {
             const { src: streamSrc = '' } = stream;
 
             const closeEventSource = (src === streamSrc) ? 'CLIENT' : 'TARGET';
-            console.log(`Stream closed by ${closeEventSource} (src=${src}, streamSrc=${streamSrc})`);
-
             return this.close(closeEventSource);
         }
 

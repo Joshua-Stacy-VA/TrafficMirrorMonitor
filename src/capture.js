@@ -54,16 +54,6 @@ class Capture {
         this.healthCheckServer.close();
     }
 
-    static displayTCPFlags(flags) {
-        const TCP_FLAGS = ['syn', 'ack', 'psh', 'rst', 'fin'];
-        const message = TCP_FLAGS.reduce((result, flag) => {
-            result.push(`${flag.toUpperCase()}: ${flags[flag].toString()}`);
-            return result;
-        }, []).join(', ');
-
-        console.log(message);
-    }
-
     // UDP packet data here should contain the following structure:
     //    UDP => VxLAN => Ethernet => IPv4 => TCP => $$
     onPacketCapture(data) {
@@ -110,15 +100,7 @@ class Capture {
 
         const stream = this.streams.getStream(src, dst, tcpFlags);
         if (stream) {
-            console.log(`=> ${stream.stream.state} ${saddr}`);
             stream.track(vxlanPacket);
-            Capture.displayTCPFlags(tcpFlags);
-
-            if (stream.stream) {
-                console.log(`<= ${stream.stream.state} ${saddr}`);
-            } else {
-                console.log(`<= STREAM CLOSED! ${saddr}`);
-            }
         }
     }
 
