@@ -113,7 +113,12 @@ class Capture {
             console.log(`=> ${stream.stream.state} ${saddr}`);
             stream.track(vxlanPacket);
             Capture.displayTCPFlags(tcpFlags);
-            console.log(`<= ${stream.stream.state} ${saddr}`);
+
+            if (stream.stream) {
+                console.log(`<= ${stream.stream.state} ${saddr}`);
+            } else {
+                console.log(`<= STREAM CLOSED! ${saddr}`);
+            }
         }
     }
 
