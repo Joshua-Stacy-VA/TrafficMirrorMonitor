@@ -53,7 +53,7 @@ class TCPStream extends EventEmitter {
         this.isConnected = true;
     }
 
-    close() {
+    close(source = 'TARGET') {
         if (this.isClosed) {
             return;
         }
@@ -64,7 +64,7 @@ class TCPStream extends EventEmitter {
 
         this.removeAllListeners();
         this.stream.removeAllListeners();
-        this.store.close(this.id);
+        this.store.close(this.id, source);
 
         Object.assign(this, {
             stream: null,
@@ -88,7 +88,22 @@ class TCPStream extends EventEmitter {
         const { payload: ip } = packet.payload;
         const { payload: tcp } = ip;
         const { flags } = tcp;
-        const { syn = false, ack = false } = flags;
+        const { syn = false, ack = false, fin = false } = flags;
+
+        // We intercept the intent to close the TCP socket by watching the "FIN" flag.
+        if (fin) {
+            const { saddr } = ip;
+            const { sport } = tcp;
+            const src = `${saddr}:${sport}`;
+
+            const { stream = {} } = this.stream;
+            const { streamSrc = '' } = stream;
+
+            const closeEventSource = (src === streamSrc) ? 'CLIENT' : 'TARGET';
+            this.close(closeEventSource);
+
+            return;
+        }
 
         // Only create the TCP stream tracker (and initialize the stream object) when we get the very first
         // TCP SYN packet. Otherwise, if we receive the packets out of order, we save them. We'll eventually
