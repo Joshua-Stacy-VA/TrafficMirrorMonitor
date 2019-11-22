@@ -416,7 +416,7 @@
                 "TrafficDirection": "egress",
                 "RuleAction": "accept",
                 "Protocol": 6,
-                "DestinationCidrBlock": "00.0.0.0/0",
+                "DestinationCidrBlock": "0.0.0.0/0",
                 "SourceCidrBlock": "0.0.0.0/0",
                 "SourcePortRange": {
                     "FromPort": 443,
