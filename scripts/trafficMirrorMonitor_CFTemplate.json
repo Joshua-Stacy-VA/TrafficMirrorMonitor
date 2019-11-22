@@ -29,22 +29,22 @@
             "ConstraintDescription": "must be the subnet associated with the ENI of the VISTA instance broker port."
         },
         "NetworkInterface1": {
-            "Description": "Elastic network interface of the front-end target VISTA system #1",
+            "Description": "Elastic network interface of the target VISTA front-end system #1",
             "Type": "String",
             "ConstraintDescription": "must be associated with the VPC ID specified above"
         },
         "NetworkInterface2": {
-            "Description": "Elastic network interface of the front-end target VISTA system #2",
+            "Description": "Elastic network interface of the target VISTA front-end system #2",
             "Type": "String",
             "ConstraintDescription": "must be associated with the VPC ID specified above"
         },
         "BrokerPort1": {
-            "Description": "TCP port to which CPRS connects on target VISTA system #1",
+            "Description": "TCP port to which CPRS connects to on target VISTA system #1",
             "Type": "Number",
             "ConstraintDescription": "VISTA TCP Broker Port"
         },
         "BrokerPort2": {
-            "Description": "TCP port to which CPRS connects on target VISTA system #2",
+            "Description": "TCP port to which CPRS connects to on target VISTA system #2",
             "Type": "Number",
             "ConstraintDescription": "VISTA TCP Broker Port"
         },
@@ -84,7 +84,7 @@
                 },
                 {
                     "Label": {
-                        "default": "Front End VISTA Server #1"
+                        "default": "VISTA Front End Server #1"
                     },
                     "Parameters": [
                         "NetworkInterface1",
@@ -93,7 +93,7 @@
                 },
                 {
                     "Label": {
-                        "default": "Front End VISTA Server #2"
+                        "default": "VISTA Front End Server #2"
                     },
                     "Parameters": [
                         "NetworkInterface2",
@@ -112,16 +112,16 @@
                     "default": "VISTA Subnet"
                 },
                 "NetworkInterface1": {
-                    "default": "Elastic Network Interface ID for VISTA Front End #1"
+                    "default": "ENI ID"
                 },
                 "NetworkInterface2": {
-                    "default": "Elastic Network Interface ID for VISTA Front End #2"
+                    "default": "ENI ID"
                 },
                 "BrokerPort1": {
-                    "default": "TCP Port of the RPC Broker for VISTA Front End #1"
+                    "default": "TCP Broker Port"
                 },
                 "BrokerPort2": {
-                    "default": "TCP Port of the RPC Broker for VISTA Front End #2"
+                    "default": "TCP Broker Port"
                 },
                 "KeyName": {
                     "default": "EC2 Key-Pair"
