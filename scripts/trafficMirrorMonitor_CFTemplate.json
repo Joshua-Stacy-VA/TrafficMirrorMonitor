@@ -28,10 +28,25 @@
             "Description": "The Subnet IDs of the front-end VISTA instance",
             "ConstraintDescription": "must be the subnet associated with the ENI of the VISTA instance broker port."
         },
-        "NetworkInterface": {
-            "Description": "Elastic network interface of the target VISTA system",
+        "NetworkInterface1": {
+            "Description": "Elastic network interface of the front-end target VISTA system #1",
             "Type": "String",
             "ConstraintDescription": "must be associated with the VPC ID specified above"
+        },
+        "NetworkInterface2": {
+            "Description": "Elastic network interface of the front-end target VISTA system #2",
+            "Type": "String",
+            "ConstraintDescription": "must be associated with the VPC ID specified above"
+        },
+        "BrokerPort1": {
+            "Description": "TCP port to which CPRS connects on target VISTA system #1",
+            "Type": "Number",
+            "ConstraintDescription": "VISTA TCP Broker Port"
+        },
+        "BrokerPort2": {
+            "Description": "TCP port to which CPRS connects on target VISTA system #2",
+            "Type": "Number",
+            "ConstraintDescription": "VISTA TCP Broker Port"
         },
         "KeyName": {
             "Description": "Name of an existing EC2 Key Pair to enable SSH access to the instances",
@@ -63,9 +78,26 @@
                     "Parameters": [
                         "VpcId",
                         "Subnet",
-                        "NetworkInterface",
                         "KeyName",
                         "InstanceProfile"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "Front End VISTA Server #1"
+                    },
+                    "Parameters": [
+                        "NetworkInterface1",
+                        "BrokerPort1"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "Front End VISTA Server #2"
+                    },
+                    "Parameters": [
+                        "NetworkInterface2",
+                        "BrokerPort2"
                     ]
                 }
             ],
@@ -79,8 +111,17 @@
                 "Subnet": {
                     "default": "VISTA Subnet"
                 },
-                "NetworkInterface": {
-                    "default": "VISTA Elastic Network Interface ID"
+                "NetworkInterface1": {
+                    "default": "Elastic Network Interface ID for VISTA Front End #1"
+                },
+                "NetworkInterface2": {
+                    "default": "Elastic Network Interface ID for VISTA Front End #2"
+                },
+                "BrokerPort1": {
+                    "default": "TCP Port of the RPC Broker for VISTA Front End #1"
+                },
+                "BrokerPort2": {
+                    "default": "TCP Port of the RPC Broker for VISTA Front End #2"
                 },
                 "KeyName": {
                     "default": "EC2 Key-Pair"
@@ -171,7 +212,7 @@
                         {
                             "Id": "DeleteOldRule",
                             "Status": "Enabled",
-                            "ExpirationInDays": "7"
+                            "ExpirationInDays": "5"
                         }
                     ]
                 }
@@ -371,14 +412,14 @@
                 "NLB"
             ]
         },
-        "TrafficMirrorFilter": {
+        "TrafficMirrorFilter1": {
             "Type": "AWS::EC2::TrafficMirrorFilter",
             "Properties": {
                 "Tags": [{
                     "Key": "Name",
                     "Value": {
                         "Fn::Sub": [
-                            "project-VAM-TMFilter-${SystemName}-${Environment}",
+                            "project-VAM-TMFilter1-${SystemName}-${Environment}",
                             {
                                 "SystemName": {
                                     "Ref": "SystemName"
@@ -392,39 +433,94 @@
                 }]
             }
         },
-        "TrafficMirrorInboundTrafficRule": {
+        "TrafficMirrorFilter2": {
+            "Type": "AWS::EC2::TrafficMirrorFilter",
+            "Properties": {
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": {
+                        "Fn::Sub": [
+                            "project-VAM-TMFilter2-${SystemName}-${Environment}",
+                            {
+                                "SystemName": {
+                                    "Ref": "SystemName"
+                                },
+                                "Environment": {
+                                    "Ref": "Environment"
+                                }
+                            }
+                        ]
+                    }
+                }]
+            }
+        },
+        "TrafficMirrorInboundTrafficRule1": {
             "Type": "AWS::EC2::TrafficMirrorFilterRule",
             "Properties": {
-                "TrafficMirrorFilterId": { "Ref": "TrafficMirrorFilter" },
+                "TrafficMirrorFilterId": { "Ref": "TrafficMirrorFilter1" },
                 "TrafficDirection": "ingress",
                 "RuleAction": "accept",
                 "Protocol": 6,
                 "DestinationCidrBlock": "0.0.0.0/0",
                 "SourceCidrBlock": "0.0.0.0/0",
                 "DestinationPortRange": {
-                    "FromPort": 443,
-                    "ToPort": 443
+                    "FromPort": { "Ref": "BrokerPort1" },
+                    "ToPort": { "Ref": "BrokerPort1" }
                 },
                 "RuleNumber": 100
             },
-            "DependsOn": [ "TrafficMirrorFilter" ]
+            "DependsOn": [ "TrafficMirrorFilter1" ]
         },
-        "TrafficMirrorOutboundTrafficRule": {
+        "TrafficMirrorOutboundTrafficRule1": {
             "Type": "AWS::EC2::TrafficMirrorFilterRule",
             "Properties": {
-                "TrafficMirrorFilterId": { "Ref": "TrafficMirrorFilter" },
+                "TrafficMirrorFilterId": { "Ref": "TrafficMirrorFilter1" },
                 "TrafficDirection": "egress",
                 "RuleAction": "accept",
                 "Protocol": 6,
-                "DestinationCidrBlock": "00.0.0.0/0",
+                "DestinationCidrBlock": "0.0.0.0/0",
                 "SourceCidrBlock": "0.0.0.0/0",
                 "SourcePortRange": {
-                    "FromPort": 443,
-                    "ToPort": 443
+                    "FromPort": { "Ref": "BrokerPort1" },
+                    "ToPort": { "Ref": "BrokerPort1" }
                 },
                 "RuleNumber": 100
             },
-            "DependsOn": [ "TrafficMirrorFilter" ]
+            "DependsOn": [ "TrafficMirrorFilter1" ]
+        },
+        "TrafficMirrorInboundTrafficRule2": {
+            "Type": "AWS::EC2::TrafficMirrorFilterRule",
+            "Properties": {
+                "TrafficMirrorFilterId": { "Ref": "TrafficMirrorFilter2" },
+                "TrafficDirection": "ingress",
+                "RuleAction": "accept",
+                "Protocol": 6,
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "SourceCidrBlock": "0.0.0.0/0",
+                "DestinationPortRange": {
+                    "FromPort": { "Ref": "BrokerPort2" },
+                    "ToPort": { "Ref": "BrokerPort2" }
+                },
+                "RuleNumber": 200
+            },
+            "DependsOn": [ "TrafficMirrorFilter1" ]
+        },
+        "TrafficMirrorOutboundTrafficRule2": {
+            "Type": "AWS::EC2::TrafficMirrorFilterRule",
+            "Properties": {
+                "TrafficMirrorFilterId": { "Ref": "TrafficMirrorFilter2" },
+                "TrafficDirection": "egress",
+                "RuleAction": "accept",
+                "Protocol": 6,
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "SourceCidrBlock": "0.0.0.0/0",
+                "SourcePortRange": {
+                    "FromPort": { "Ref": "BrokerPort2" },
+                    "ToPort": { "Ref": "BrokerPort2" }
+                },
+                "RuleNumber": 200
+            },
+            "DependsOn": [ "TrafficMirrorFilter2" ]
         },
         "TrafficMirrorTarget": {
             "Type": "AWS::EC2::TrafficMirrorTarget",
@@ -448,18 +544,18 @@
                 }]
             }
         },
-        "TrafficMirrorSession": {
+        "TrafficMirrorSession1": {
             "Type" : "AWS::EC2::TrafficMirrorSession",
             "Properties" : {
-                "NetworkInterfaceId": { "Ref": "NetworkInterface" },
+                "NetworkInterfaceId": { "Ref": "NetworkInterface1" },
                 "SessionNumber": 1,
                 "TrafficMirrorTargetId": { "Ref": "TrafficMirrorTarget" },
-                "TrafficMirrorFilterId": { "Ref": "TrafficMirrorFilter" },
+                "TrafficMirrorFilterId": { "Ref": "TrafficMirrorFilter1" },
                 "Tags": [{
                     "Key": "Name",
                     "Value": {
                         "Fn::Sub": [
-                            "project-VAM-TMSession-${SystemName}-${Environment}",
+                            "project-VAM-TMSession1-${SystemName}-${Environment}",
                             {
                                 "SystemName": {
                                     "Ref": "SystemName"
@@ -473,9 +569,40 @@
                 }]
             },
             "DependsOn": [
-                "TrafficMirrorFilter",
-                "TrafficMirrorInboundTrafficRule",
-                "TrafficMirrorOutboundTrafficRule",
+                "TrafficMirrorFilter1",
+                "TrafficMirrorInboundTrafficRule1",
+                "TrafficMirrorOutboundTrafficRule1",
+                "TrafficMirrorTarget"
+            ]
+        },
+        "TrafficMirrorSession2": {
+            "Type" : "AWS::EC2::TrafficMirrorSession",
+            "Properties" : {
+                "NetworkInterfaceId": { "Ref": "NetworkInterface2" },
+                "SessionNumber": 1,
+                "TrafficMirrorTargetId": { "Ref": "TrafficMirrorTarget" },
+                "TrafficMirrorFilterId": { "Ref": "TrafficMirrorFilter2" },
+                "Tags": [{
+                    "Key": "Name",
+                    "Value": {
+                        "Fn::Sub": [
+                            "project-VAM-TMSession2-${SystemName}-${Environment}",
+                            {
+                                "SystemName": {
+                                    "Ref": "SystemName"
+                                },
+                                "Environment": {
+                                    "Ref": "Environment"
+                                }
+                            }
+                        ]
+                    }
+                }]
+            },
+            "DependsOn": [
+                "TrafficMirrorFilter2",
+                "TrafficMirrorInboundTrafficRule2",
+                "TrafficMirrorOutboundTrafficRule2",
                 "TrafficMirrorTarget"
             ]
         }
