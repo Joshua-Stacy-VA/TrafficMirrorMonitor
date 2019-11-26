@@ -168,7 +168,7 @@ class Store extends Map {
 
     static generateFileName(data) {
         const { id = 'UNKNOWN' } = data;
-        return `${id}_${Date.now()}.json`;
+        return `${Date.now()}_${id}.json`;
     }
 
     /**
