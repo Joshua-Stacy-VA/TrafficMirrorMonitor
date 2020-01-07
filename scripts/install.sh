@@ -16,7 +16,7 @@ yum-config-manager --disable rhel-6-server-optional-rpms
 yum install -y make glibc-devel gcc patch gcc-c++
 
 echo '------------------------------ Installing and configuring process management tools -------------------------------'
-pm2 install pm2-logrotate
+runuser -l ec2-user -c 'pm2 install pm2-logrotate'
 
 echo '---------------------------------------- Install the RPC Mirror software -----------------------------------------'
 git config --global http.sslVerify false
