@@ -147,11 +147,11 @@ transport module. To configure 'cloudwatch' logging, refer to the configuration 
 ## Artifacts
 
 Data objects processed by the function will be saved to the VAM S3 bucket with the following naming scheme:
-`s3://{{S3 BUCKET NAME}}/{{SESSION UUID}}_{{PROCESS TIMESTAMP}}.json`
+`s3://{{S3 BUCKET NAME}}/{{PROCESS TIMESTAMP}}_{{SESSION UUID}}.json`
 
 ##### Example
 
-`s3://traffic-mirror-vam-sample/a78b33d3-48c1-417e-ae78-abfc3456def4_15659901202123.json`
+`s3://traffic-mirror-vam-sample/15659901202123_a78b33d3-48c1-417e-ae78-abfc3456def4.json`
 
 Each JS object will have the following format:
 
@@ -161,19 +161,19 @@ Each JS object will have the following format:
 | source                         | String        | Source of a given S3 JSON data object which will be either 'client' or 'target' depending on the direction of traffic                                           |
 | client                         | String        | The hostname or IP address and TCP port of the RPC client entity with respect to the connection. The string will have the format `<host>:<port>`.               |
 | target                         | String        | The hostname or IP address and TCP port of the target VISTA entity with respect to the connection. The string will have the format `<host>:<port>`.             |
-| payload                        | Object        | Data and metadata from the Kinesis stream event                                                                                                                 |
-| payload.client                 | Array[Object] | Client data from the Kinesis stream.                                                                                                                            |
-| payload.client.sequenceNumber  | String        | The sequence number, used by Kinesis, to order the data in the stream. This can be used to resequence the data from a particular stream.                        |
-| payload.client.timestamp       | String        | Server-side timestamp of the record.                                                                                                                            |
+| payload                        | Object        | Data and metadata from TCP stream captured by the mirror.                                                                                                                 |
+| payload.client                 | Array[Object] | Client sourced data from the TCP stream.                                                                                                                            |
+| payload.client.sequenceNumber  | String        | The sequence number, used by downstream applications, to order the data in the stream. This can be used to resequence the data from a particular stream.                        |
+| payload.client.timestamp       | String        | Timestamp of the client data at the mirror.                                                                                                                            |
 | payload.client.data            | String        | The converted ASCII version of the raw data. This is the data to use for reassembling the data stream.                                                          |
-| payload.target                 | Array[Object] | Target data from the Kinesis stream.                                                                                                                            |
-| payload.target.sequenceNumber  | String        | The sequence number, used by Kinesis, to order the data in the stream. This can be used to resequence the data from a particular stream.                        |
-| payload.target.timestamp       | String        | Server-side timestamp of the record.                                                                                                                            |
+| payload.target                 | Array[Object] | Target sourced data from the TCP stream.                                                                                                                            |
+| payload.target.sequenceNumber  | String        | The sequence number, used by downstream applications, to order the data in the stream. This can be used to resequence the data from a particular stream.                        |
+| payload.target.timestamp       | String        | Timestamp of the server data at the mirror.                                                                                                                            |
 | payload.target.data            | String        | The converted ASCII version of the raw data. This is the data to use for reassembling the data stream.                                                          |
-| payload.control                | Array[Object] | Control data (connect/disconnect events) from the Kinesis stream.                                                                                               |
-| payload.control.sequenceNumber | String        | The sequence number, used by Kinesis, to order the data in the stream. This can be used to resequence the data from a particular stream.                        |
-| payload.control.timestamp      | String        | Server-side timestamp of the record.                                                                                                                            |
-| payload.control.data           | String        | The converted ASCII version of the raw data. This is the data to use for reassembling the data stream.                                                          |
+| payload.control                | Array[Object] | Control data (connect/disconnect events) associated with the TCP stream.                                                                                               |
+| payload.control.sequenceNumber | String        | The sequence number, used by downstream applications, to order the data in the stream. This can be used to resequence the data from a particular stream.                        |
+| payload.control.timestamp      | String        | Timestamp of the control event at the mirror.                                                                                                                            |
+| payload.control.data           | String        | String representing the type of control event.                                                          |
 
 ##### Example
 
@@ -186,31 +186,31 @@ Each JS object will have the following format:
     "client": [
       {
         "sequenceNumber": "49598510572469704122697736725775930941507138114069463042",
-        "timestamp": "1566355005641",
+        "timestamp": "000000000002",
         "data": "[XWB]10304\nTCPConnect5001210.184.59.41f00010f001210.184.59.41f\u0004"
       },
       {
         "sequenceNumber": "49598510572469704122697736730079706859335223542301065218",
-        "timestamp": "1566355087029",
+        "timestamp": "000000000004",
         "data": "[XWB]11302\u00010\u0010XUS SIGNON SETUP50000f00011f\u0004"
       }
     ],
     "target": [
       {
         "sequenceNumber": "49598510572469704122697736725777139867326752743244169218",
-        "timestamp": "1566355005652",
+        "timestamp": "000000000003",
         "data": "\u0000\u0000accept\u0004"
       },
       {
         "sequenceNumber": "49598510572469704122697736730109930004825589340388196354",
-        "timestamp": "1566355087031",
+        "timestamp": "000000000005",
         "data": "\u0000\u0000gtm_sysid\r\nROU\r\nVAH\r\n/dev/null\r\n5\r\n0\r\nDEMO.NODEVISTA.ORG\r\n0\r\n\u0004"
       }
     ],
     "control": [
       {
         "sequenceNumber": "49598510572469704122697736725748125647656001574331744258",
-        "timestamp": "1566355005641",
+        "timestamp": "000000000001",
         "data": "LINK_ESTABLISH"
       }
     ]
