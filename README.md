@@ -75,7 +75,7 @@ You'll also need to have a valid S3 bucket that the **Traffic Mirror Monitor** c
 
 For convenience, we've created a CloudFormation template for installing and running the **Traffic Mirror Monitor**.
 The CloudFormation template installs the application within an Auto Scaling Group, behind a Network Load Balancer,
-and also creates the target S3 bucket. To create the CloudFormation stack with the template, see the [deployment guide](https://github.com/vistadataproject/TrafficMirrorMonitor) here.
+and also creates the target S3 bucket. To create the CloudFormation stack with the template, see the [deployment guide](https://github.com/vistadataproject/TrafficMirrorMonitor/wiki/Traffic-Mirror---AWS-Deployment-Procedure) here.
 
 
 ## Operation
