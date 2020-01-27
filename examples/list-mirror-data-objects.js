@@ -49,7 +49,7 @@ const listObjects = async () => {
     const readS3 = async (objects = [], nextToken = null) => {
         const params = {
             Bucket: bucket,
-            Prefix: startTimestamp.toString(),
+            StartAfter: startTimestamp.toString(),
         };
         if (nextToken) {
             Object.assign(params, { ContinuationToken: nextToken });
@@ -61,7 +61,7 @@ const listObjects = async () => {
 
             const filteredContents = contents.filter((object) => {
                 const { Key: key } = object;
-                const [token] = key.split('_')[0];
+                const [token] = key.split('_');
                 const timestamp = +token;
 
                 return (!Number.isNaN(timestamp) && timestamp >= startTimestamp && timestamp <= endTimestamp);
