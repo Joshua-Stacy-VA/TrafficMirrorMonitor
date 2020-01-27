@@ -4,7 +4,7 @@ const AWS = require('aws-sdk');
 const fs = require('fs-extra');
 const { DateTime } = require('luxon');
 
-// ============================================= Configuration properties ==============================================
+// ================================================== Initialization ===================================================
 const args = require('minimist')(process.argv.slice(2), {
     alias: {
         b: 'bucket', d: 'startDate', z: 'timezone', r: 'region',
@@ -20,10 +20,13 @@ const {
     bucket, startDate, timezone, region,
 } = args;
 
-// ===================================================== Utilities =====================================================
-const makeNiceTimestamp = timestamp => DateTime.fromMillis(timestamp).setZone(timezone).toFormat('f');
+if (!bucket) {
+    throw new Error('AWS S3 bucket name "bucket" (-b) argument required');
+}
 
-const getTimestampRange = () => {
+const s3 = new AWS.S3({ region });
+
+const [startTimestamp, endTimestamp] = (() => {
     const dateTime = DateTime.fromFormat(startDate, 'M/d/yyyy', { zone: timezone });
 
     if (!dateTime.isValid) {
@@ -34,15 +37,10 @@ const getTimestampRange = () => {
         dateTime.startOf('day').toMillis(),
         dateTime.endOf('day').toMillis(),
     ];
-};
+})();
 
-// ================================================== Initialization ===================================================
-if (!bucket) {
-    throw new Error('AWS S3 bucket name "bucket" (-b) argument required');
-}
-
-const s3 = new AWS.S3({ region });
-const [startTimestamp, endTimestamp] = getTimestampRange();
+// ===================================================== Utilities =====================================================
+const makeNiceTimestamp = timestamp => DateTime.fromMillis(timestamp).setZone(timezone).toFormat('f');
 
 const getPercent = timestamp => (((timestamp - startTimestamp) * 100.0) / (endTimestamp - startTimestamp)).toFixed(2);
 
