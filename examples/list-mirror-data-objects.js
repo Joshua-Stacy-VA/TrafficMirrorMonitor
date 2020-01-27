@@ -44,6 +44,10 @@ if (!bucket) {
 const s3 = new AWS.S3({ region });
 const [startTimestamp, endTimestamp] = getTimestampRange();
 
+const getPercentage = timestamp => (((endTimestamp - timestamp) * 100.0) / (endTimestamp - startTimestamp)).toFixed(2);
+
+const getLastTimestamp = contents => +(contents[contents.length - 1].split('_')[0]);
+
 // =================================================== Read from S3 ====================================================
 const listObjects = async () => {
     const readS3 = async (objects = [], nextToken = null) => {
@@ -73,6 +77,11 @@ const listObjects = async () => {
 
             objects.push(...filteredContents);
 
+            const lastTimestamp = getLastTimestamp(filteredContents);
+            process.stdout.clearLine();
+            process.stdout.cursorTo(0);
+            process.stdout.write(`Retrieved ${objects.length} objects (${getPercentage(lastTimestamp)}%)`);
+
             if (isTruncated) {
                 const { NextContinuationToken: token } = listResults;
                 await readS3(objects, token);
@@ -96,6 +105,7 @@ const listObjects = async () => {
     const objects = await listObjects();
 
     const outputFileName = `s3-objects_${startTimestamp}-${endTimestamp}.txt`;
+    console.log();
     console.log(`Saving ${objects.length} objects to ${outputFileName}`);
     await fs.outputFile(outputFileName, objects.join('\n'));
 })();
