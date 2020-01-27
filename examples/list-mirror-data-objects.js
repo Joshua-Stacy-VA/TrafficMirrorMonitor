@@ -44,7 +44,7 @@ if (!bucket) {
 const s3 = new AWS.S3({ region });
 const [startTimestamp, endTimestamp] = getTimestampRange();
 
-const getPercentage = timestamp => (((endTimestamp - timestamp) * 100.0) / (endTimestamp - startTimestamp)).toFixed(2);
+const getPercent = timestamp => (((timestamp - startTimestamp) * 100.0) / (endTimestamp - startTimestamp)).toFixed(2);
 
 const getLastTimestamp = contents => +(contents[contents.length - 1].split('_')[0]);
 
@@ -80,7 +80,7 @@ const listObjects = async () => {
             const lastTimestamp = getLastTimestamp(filteredContents);
             process.stdout.clearLine();
             process.stdout.cursorTo(0);
-            process.stdout.write(`Retrieved ${objects.length} objects (${getPercentage(lastTimestamp)}%)`);
+            process.stdout.write(`Retrieved ${objects.length} objects (${getPercent(lastTimestamp)}%)`);
 
             if (isTruncated) {
                 const { NextContinuationToken: token } = listResults;
