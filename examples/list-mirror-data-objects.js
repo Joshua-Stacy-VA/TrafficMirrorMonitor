@@ -21,7 +21,7 @@ const {
 } = args;
 
 // ===================================================== Utilities =====================================================
-const makeNiceTimestamp = timestamp => DateTime.fromMillis(timestamp).toFormat('M/d/yyyy');
+const makeNiceTimestamp = timestamp => DateTime.fromMillis(timestamp).setZone(timezone).toFormat('M/d/yyyy');
 
 const getTimestampRange = () => {
     const dateTime = DateTime.fromFormat(startDate, 'M/d/yyyy').setZone(timezone);
