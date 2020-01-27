@@ -21,10 +21,10 @@ const {
 } = args;
 
 // ===================================================== Utilities =====================================================
-const makeNiceTimestamp = timestamp => DateTime.fromMillis(timestamp).setZone(timezone).toFormat('M/d/yyyy');
+const makeNiceTimestamp = timestamp => DateTime.fromMillis(timestamp).setZone(timezone).toFormat('f');
 
 const getTimestampRange = () => {
-    const dateTime = DateTime.fromFormat(startDate, 'M/d/yyyy').setZone(timezone);
+    const dateTime = DateTime.fromFormat(startDate, 'M/d/yyyy', { zone: timezone });
 
     if (!dateTime.isValid) {
         throw new Error(`Invalid start date "startDate" (-d) argument ${startDate}, must be M/D/YYYY`);
