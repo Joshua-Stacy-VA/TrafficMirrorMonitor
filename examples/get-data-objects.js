@@ -31,6 +31,8 @@ const s3 = new AWS.S3({ region });
 
 const objects = fs.readFileSync(sourceFile).toString().split('\n');
 
+fs.ensureDirSync(targetDir);
+
 // =================================================== Read from S3 ====================================================
 let count = 0;
 const getPercent = () => ((count * 100.0) / objects.length).toFixed(2);
