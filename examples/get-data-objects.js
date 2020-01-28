@@ -2,7 +2,7 @@
 
 const AWS = require('aws-sdk');
 const fs = require('fs-extra');
-const { default: PQueue } = require('p-queue');
+const PQueue = require('p-queue');
 
 // ================================================== Initialization ===================================================
 const args = require('minimist')(process.argv.slice(2), {
