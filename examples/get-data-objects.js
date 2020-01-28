@@ -59,7 +59,9 @@ const getObject = object => new Promise((resolve, reject) => {
     console.log(`Reading S3 bucket ${bucket} for ${objects.length} objects}`);
     const queue = new PQueue({ concurrency: 5 });
 
-    queue.addAll(objects.map(obj => getObject.bind(null, obj)));
+    objects.forEach((object) => {
+        queue.add(getObject.bind(null, object));
+    });
     await queue.onIdle();
 
     console.log('Done');
