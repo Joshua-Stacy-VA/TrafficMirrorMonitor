@@ -7,16 +7,17 @@ const PQueue = require('p-queue');
 // ================================================== Initialization ===================================================
 const args = require('minimist')(process.argv.slice(2), {
     alias: {
-        b: 'bucket', s: 'sourceFile', t: 'targetDir', r: 'region',
+        b: 'bucket', s: 'sourceFile', t: 'targetDir', r: 'region', c: 'concurrency',
     },
     default: {
         targetDir: 'output',
         region: 'us-gov-east-1',
+        concurrency: 5,
     },
 });
 
 const {
-    bucket, sourceFile, targetDir, region,
+    bucket, sourceFile, targetDir, region, concurrency,
 } = args;
 
 if (!bucket) {
@@ -57,7 +58,7 @@ const getObject = object => new Promise((resolve, reject) => {
 
 (async () => {
     console.log(`Reading S3 bucket ${bucket} for ${objects.length} objects`);
-    const queue = new PQueue({ concurrency: 5 });
+    const queue = new PQueue({ concurrency });
 
     queue.on('active', () => {
         process.stdout.clearLine();
@@ -65,9 +66,7 @@ const getObject = object => new Promise((resolve, reject) => {
         process.stdout.write(`Retrieved ${count} objects (${getPercent()}%)`);
     });
 
-    objects.forEach((object) => {
-        queue.add(getObject.bind(null, object));
-    });
+    queue.addAll(objects.map(object => getObject.bind(null, object)));
     await queue.onIdle();
 
     console.log('Done');
