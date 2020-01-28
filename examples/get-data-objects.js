@@ -44,20 +44,26 @@ const getObject = object => new Promise((resolve, reject) => {
         Key: object,
     };
     s3.getObject(params).createReadStream().pipe(output)
-        .on('end', () => {
+        .on('close', () => {
             count += 1;
-            process.stdout.clearLine();
-            process.stdout.cursorTo(0);
-            process.stdout.write(`Retrieved ${count} objects (${getPercent()}%)`);
             resolve();
         })
-        .on('error', err => reject(err));
+        .on('error', (err) => {
+            console.log(err);
+            reject(err);
+        });
 });
 
 
 (async () => {
-    console.log(`Reading S3 bucket ${bucket} for ${objects.length} objects}`);
+    console.log(`Reading S3 bucket ${bucket} for ${objects.length} objects`);
     const queue = new PQueue({ concurrency: 5 });
+
+    queue.on('active', () => {
+        process.stdout.clearLine();
+        process.stdout.cursorTo(0);
+        process.stdout.write(`Retrieved ${count} objects (${getPercent()}%)`);
+    });
 
     objects.forEach((object) => {
         queue.add(getObject.bind(null, object));
